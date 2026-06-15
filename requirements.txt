@@ -1,0 +1,6 @@
+# Smart Cart Lab — dependencies
+# Install with: pip install -r requirements.txt
+
+keepa               # Keepa API client
+python-telegram-bot # Telegram Bot API
+requests            # HTTP calls (WordPress REST API, scraper fallback)
