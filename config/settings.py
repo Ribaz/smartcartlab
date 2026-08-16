@@ -15,9 +15,11 @@ DB_PATH = "data/smartcartlab.db"
 PUBLISH_HOUR = 8             # hour to publish the daily pick (24h format)
 
 # --- Credentials (read from .env) ---
-KEEPA_API_KEY         = os.getenv("KEEPA_API_KEY")
-TELEGRAM_BOT_TOKEN    = os.getenv("TELEGRAM_BOT_TOKEN")
-TELEGRAM_CHANNEL_ID   = os.getenv("TELEGRAM_CHANNEL_ID")
-WORDPRESS_URL         = os.getenv("WORDPRESS_URL")
-WORDPRESS_USER        = os.getenv("WORDPRESS_USER")
+KEEPA_API_KEY          = os.getenv("KEEPA_API_KEY")
+TELEGRAM_BOT_TOKEN     = os.getenv("TELEGRAM_BOT_TOKEN")
+TELEGRAM_CHANNEL_ID    = os.getenv("TELEGRAM_CHANNEL_ID")
+WORDPRESS_URL          = os.getenv("WORDPRESS_URL")
+WORDPRESS_USER         = os.getenv("WORDPRESS_USER")
 WORDPRESS_APP_PASSWORD = os.getenv("WORDPRESS_APP_PASSWORD")
+OLLAMA_URL             = os.getenv("OLLAMA_URL", "http://localhost:11434/api/generate")
+OLLAMA_MODEL           = os.getenv("OLLAMA_MODEL", "gemma3:4b")
