@@ -25,7 +25,7 @@ scorer = Scorer()
 
 publishers = [
     TelegramPublisher(),
-    WordPressPublisher(),
+    #WordPressPublisher(),
 ]
 
 
