@@ -55,7 +55,7 @@ class TelegramPublisher:
         )
 
         try:
-            response = requests.post(OLLAMA_URL, json={
+            response = requests.post(OLLAMA_URL + "/api/generate", json={
                 "model": OLLAMA_MODEL,
                 "prompt": prompt,
                 "stream": False,
