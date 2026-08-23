@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SmartCartLab - Social Dashboard</title>
+    <!-- Bootstrap 5 CDN for clean, responsive layout -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        th.sortable {
+            cursor: pointer;
+            user-select: none;
+        }
+        th.sortable:hover {
+            background-color: #e9ecef !important;
+        }
+    </style>
+</head>
+<body class="bg-light">
+
+    <div class="container py-4">
+        <header class="pb-3 mb-4 border-bottom d-flex justify-content-between align-items-center">
+            <h1 class="h3">🛒 SmartCartLab Social Dashboard</h1>
+            <span class="badge bg-secondary">Local Mode</span>
+        </header>
+
+        <!-- HIGH SECTION: Pending Approval Posts -->
+        <section class="mb-5">
+            <h2 class="h4 mb-3 text-primary">📥 Pending Approval ({{ pending_posts|length }})</h2>
+            
+            {% if not pending_posts %}
+                <div class="alert alert-info">No posts awaiting review. Great job!</div>
+            {% else %}
+                <div class="row row-cols-1 row-cols-md-2 g-4">
+                    {% for post in pending_posts %}
+                        <div class="col">
+                            <div class="card h-100 shadow-sm">
+                                <div class="card-header d-flex justify-content-between align-items-center bg-white">
+                                    <div class="d-flex align-items-center gap-2">
+                                        <span class="text-muted small fw-bold">Platform:</span>
+                                        {% set plat = post.platform | lower %}
+                                        <span class="badge 
+                                            {% if 'mastodon' in plat %} text-white" style="background-color: #6366f1;"
+                                            {% elif 'facebook' in plat %} bg-primary
+                                            {% elif 'twitter' in plat or 'x' in plat %} bg-dark
+                                            {% else %} bg-secondary {% endif %}">
+                                            {{ post.platform }}
+                                        </span>
+                                    </div>
+                                    <small class="text-muted fw-bold">ID: {{ post.id }} | <span class="fw-normal">Variant #{{ post.variation_number }}</span></small>
+                                </div>
+                                
+                                <!-- Single form for content management and actions -->
+                                <form method="POST">
+                                    <div class="card-body">
+                                        <div class="mb-2 d-flex justify-content-between align-items-center">
+                                            <label class="form-label small text-muted mb-0">Post Content (editable):</label>
+                                        </div>
+                                        <!-- Textarea for direct text editing -->
+                                        <textarea class="form-control" name="content" rows="4">{{ post.content }}</textarea>
+                                    </div>
+                                    <div class="card-footer bg-white d-flex justify-content-between align-items-center flex-wrap gap-2">
+                                        <div class="d-flex gap-1">
+                                            <button type="submit" formaction="/posts/{{ post.id }}/reject" formnovalidate class="btn btn-outline-danger btn-sm">❌ Reject</button>
+                                            <button type="submit" formaction="/posts/{{ post.id }}/rewrite" formnovalidate class="btn btn-outline-secondary btn-sm" title="Request AI text rewrite">✨ Rewrite</button>
+                                        </div>
+                                        <div class="d-flex gap-1">
+                                            <button type="submit" formaction="/posts/{{ post.id }}/update" class="btn btn-outline-primary btn-sm">💾 Save</button>
+                                            <button type="submit" formaction="/posts/{{ post.id }}/approve" class="btn btn-success btn-sm">✅ Approve</button>
+                                        </div>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+                    {% endfor %}
+                </div>
+            {% endif %}
+        </section>
+
+        <hr class="my-4">
+
+        <!-- LOW SECTION: Publishing Queue & Approved Posts -->
+        <section>
+            <h2 class="h4 mb-3 text-success">📅 Publishing Queue & Approved Posts</h2>
+            
+            {% if not scheduled_posts %}
+                <div class="alert alert-warning">No posts currently in the queue or approved.</div>
+            {% else %}
+                <div class="table-responsive bg-white rounded shadow-sm p-3">
+                    <table class="table table-hover align-middle mb-0" id="scheduledTable">
+                        <thead class="table-light">
+                            <tr>
+                                <th class="sortable">ID ↕</th>
+                                <th class="sortable">Status ↕</th>
+                                <th class="sortable">Scheduled Date/Time ↕</th>
+                                <th class="sortable">Platform ↕</th>
+                                <th class="sortable">Content ↕</th>
+                                <th class="sortable">Characters ↕</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for post in scheduled_posts %}
+                                <tr>
+                                    <td><span class="badge bg-secondary">#{{ post.id }}</span></td>
+                                    <td>
+                                        {% if post.status == 'APPROVED' %}
+                                            <span class="badge bg-success">Approved</span>
+                                        {% elif post.status == 'PENDING' %}
+                                            <span class="badge bg-warning">Pending</span>
+                                        {% elif post.status == 'PUBLISHED' %}
+                                            <span class="badge bg-info text-dark">Published</span>
+                                        {% elif post.status == 'REJECTED' %}
+                                            <span class="badge bg-danger">Rejected</span>
+                                        {% else %}
+                                            <span class="badge bg-secondary">{{ post.status }}</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if post.scheduled_at %}
+                                            <strong>{{ post.scheduled_at }}</strong>
+                                        {% else %}
+                                            <span class="text-muted small fst-italic">Pending slot</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% set plat = post.platform | lower %}
+                                        <span class="badge 
+                                            {% if 'mastodon' in plat %} text-white" style="background-color: #6366f1;"
+                                            {% elif 'facebook' in plat %} bg-primary
+                                            {% elif 'twitter' in plat or 'x' in plat %} bg-dark
+                                            {% else %} bg-secondary {% endif %}">
+                                            {{ post.platform }}
+                                        </span>
+                                    </td>
+                                    <td class="text-truncate" style="max-width: 350px;" title="{{ post.content }}">
+                                        {{ post.content }}
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-light text-dark border">{{ post.content | length }}</span>
+                                    </td>
+                                    <td>
+                                        <div class="d-flex gap-1">
+                                            <button type="button" class="btn btn-outline-secondary btn-sm" 
+                                                    data-bs-toggle="modal" 
+                                                    data-bs-target="#rescheduleModal" 
+                                                    data-post-id="{{ post.id }}" 
+                                                    data-post-date="{{ post.scheduled_at or '' }}"
+                                                    title="Change schedule date">
+                                                📅 Reschedule
+                                            </button>
+                                            <form action="/posts/{{ post.id }}/cancel" method="POST" class="d-inline">
+                                                <button type="submit" class="btn btn-outline-warning btn-sm" title="Revert to pending">Cancel</button>
+                                            </form>
+                                            <form action="/posts/{{ post.id }}/publish-now" method="POST" class="d-inline">
+                                                <button type="submit" class="btn btn-outline-success btn-sm" title="Publish immediately">🚀 Publish Now</button>
+                                            </form>
+                                        </div>
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% endif %}
+        </section>
+    </div>
+
+    <!-- Reschedule Modal -->
+    <div class="modal fade" id="rescheduleModal" tabindex="-1" aria-labelledby="rescheduleModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <form id="rescheduleForm" method="POST">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="rescheduleModalLabel">Change Schedule Date</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="mb-3">
+                            <label for="scheduled_at_input" class="form-label">New Date & Time:</label>
+                            <input type="datetime-local" class="form-control" id="scheduled_at_input" name="scheduled_at" required>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                        <button type="submit" class="btn btn-primary">Save Changes</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Table Column Sorting & Button Loading Scripts -->
+    <script>
+        // Sortable table columns
+        document.querySelectorAll('th.sortable').forEach((th, index) => {
+            let ascending = true;
+            th.addEventListener('click', () => {
+                const table = th.closest('table');
+                const tbody = table.querySelector('tbody');
+                const rows = Array.from(tbody.querySelectorAll('tr'));
+
+                rows.sort((a, b) => {
+                    const aText = a.children[index].innerText.trim();
+                    const bText = b.children[index].innerText.trim();
+                    return ascending ? aText.localeCompare(bText, 'en', {numeric: true}) : bText.localeCompare(aText, 'en', {numeric: true});
+                });
+
+                rows.forEach(row => tbody.appendChild(row));
+                ascending = !ascending;
+            });
+        });
+
+        // Reschedule modal population
+        const rescheduleModal = document.getElementById('rescheduleModal');
+        if (rescheduleModal) {
+            rescheduleModal.addEventListener('show.bs.modal', event => {
+                const button = event.relatedTarget;
+                const postId = button.getAttribute('data-post-id');
+                const postDate = button.getAttribute('data-post-date');
+                
+                const form = document.getElementById('rescheduleForm');
+                form.action = `/posts/${postId}/reschedule`;
+                
+                const input = document.getElementById('scheduled_at_input');
+                if (postDate && postDate !== 'None') {
+                    input.value = postDate.replace(' ', 'T');
+                } else {
+                    input.value = '';
+                }
+            });
+        }
+
+        // Action Buttons Loading Spinner
+        document.querySelectorAll('button[type="submit"]').forEach(btn => {
+            btn.addEventListener('click', function () {
+                const form = this.closest('form');
+                if (!form) return;
+
+                // Lock button width to prevent jumpy layout changes
+                this.style.minWidth = `${this.offsetWidth}px`;
+
+                // Slight delay to ensure the browser registers form submission & formaction
+                setTimeout(() => {
+                    this.disabled = true;
+                    this.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>';
+                }, 20);
+            });
+        });
+    </script>
+    <!-- Bootstrap JS Bundle CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

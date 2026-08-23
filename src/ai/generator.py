@@ -24,9 +24,27 @@ def _get_platform_instructions(platform: str) -> str:
     if platform == "facebook":
         return (
             "Target Platform: FACEBOOK\n"
-            "- Tone: Engaging, conversational, and accessible to a broad audience.\n"
-            "- Length: Between 300 and 600 characters. Encourage discussion or comments.\n"
-            "- Style: Use clear spacing, friendly phrasing, and include 3-4 popular hashtags along with the [LINK] placeholder."
+            "- Tone: Enthusiastic, spontaneous, conversational, and friendly. "
+            "Sound like a nerdy programmer sharing something cool they just discovered or built "
+            "with friends, not like a marketer or salesperson.\n"
+            "- Voice: Write in a natural, human, slightly informal way. "
+            "It is fine to show genuine excitement, curiosity, surprise, or satisfaction about the result. "
+            "Use simple language and explain technical ideas in a way that a non-technical friend can understand.\n"
+            "- Avoid: Do not sound promotional, corporate, polished, or sales-oriented. "
+            "Do not use marketing language, calls to buy, exaggerated claims, or phrases that sound like an advertisement. "
+            "Do not try to sell a product or service unless explicitly asked to do so.\n"
+            "- Length: Between 500 and 800 characters. Encourage discussion or comments.\n"
+            "- Structure: Write 3-4 short paragraphs separated by a blank line. "
+            "Never write the entire post as one continuous block of text. "
+            "Each paragraph should contain 1-2 sentences and focus on one idea.\n"
+            "- Content: Start with an engaging observation, result, surprise, or small personal reaction. "
+            "Then explain what happened in simple terms. "
+            "If there is a technical aspect, focus on the interesting result or idea rather than showing code. "
+            "The reader should feel like you are telling them about something cool you just experienced.\n"
+            "- Conversation: End naturally with a question, a thought, or an invitation to share experiences. "
+            "It should feel like starting a conversation with friends, not a call to action.\n"
+            "- Hashtags: End with 3-4 relevant hashtags. Keep them natural and avoid generic marketing hashtags.\n"
+            "- Link: Place the [LINK] placeholder on a new line after the hashtags.\n"
         )
     else:  # Default to mastodon / tech networks
         return (
@@ -44,7 +62,6 @@ def _build_system_prompt(platform: str) -> str:
     platform_rules = _get_platform_instructions(platform)
     
     return f"""You are the social media copywriter for SmartCartLab, a platform that helps consumers make conscious online purchases by analyzing price history, anomalies, and real value.
-
 Your task is to read the title and content of a blog article and produce exactly 3 distinct social media post variations tailored for the specified platform.
 
 {platform_rules}
@@ -149,3 +166,45 @@ def generate_social_posts(article_title: str, article_content: str, article_link
     except Exception as e:
         logger.error(f"Error communicating with Ollama ({url}) for platform {platform}: {e}")
         return []
+
+
+def rewrite_social_post(current_content: str, platform: str = "mastodon") -> Optional[str]:
+    """
+    Rewrite a single social post variation using Gemma via Ollama API.
+    """
+    platform_rules = _get_platform_instructions(platform)
+    
+    system_prompt = f"""You are the social media copywriter for SmartCartLab.
+Your task is to rewrite and improve the provided social media post for {platform}.
+CRITICAL REQUIREMENT: Write the post STRICTLY IN ITALIAN.
+Make it engaging, clear, and professional, adhering strictly to these platform rules:
+{platform_rules}
+
+Core Constraints:
+1. Keep the core message, context, and any link/placeholder intact.
+2. Make it sound fresh, engaging, and different from the original phrasing.
+3. Response Format: Return EXCLUSIVELY the rewritten post text, with no markdown code blocks, backticks, quotation marks, or introductory text."""
+
+    user_prompt = f"Original Post to Rewrite:\n{current_content}\n\nProvide the rewritten version:"
+
+    url = f"{OLLAMA_URL.rstrip('/')}/api/generate"
+    payload = {
+        "model": OLLAMA_MODEL,
+        "system": system_prompt,
+        "prompt": user_prompt,
+        "stream": False,
+        "options": {
+            "temperature": 0.8,
+            "top_p": 0.9
+        }
+    }
+
+    try:
+        response = requests.post(url, json=payload, timeout=120)
+        response.raise_for_status()
+        rewritten_text = response.json().get("response", "").strip()
+        rewritten_text = rewritten_text.strip('"').strip("'")
+        return rewritten_text if rewritten_text else None
+    except Exception as e:
+        logger.error(f"Error communicating with Ollama for post rewrite: {e}")
+        return None

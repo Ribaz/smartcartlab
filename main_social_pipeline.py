@@ -120,7 +120,7 @@ def process_scheduling(platform: str = "mastodon"):
 
 def process_publishing():
     """
-    Check for posts with SCHEDULED status whose scheduled_at <= NOW.
+    Check for posts with APPROVED status whose scheduled_at <= NOW.
     Publish payload to destination platforms and update state to PUBLISHED.
     """
     logger.info("Phase 3: Checking due scheduled posts for immediate publishing...")

@@ -4,6 +4,7 @@
 
 import os
 import sqlite3
+from datetime import datetime
 from typing import Dict, List, Optional
 from config.settings import DB_PATH, SOCIAL_DB_PATH
 
@@ -25,17 +26,17 @@ def initialize_db():
     conn = get_connection()
     conn.execute("""
         CREATE TABLE IF NOT EXISTS products (
-            id            INTEGER PRIMARY KEY AUTOINCREMENT,
-            asin          TEXT NOT NULL,
-            title         TEXT,
-            category      TEXT,
-            current_price REAL,
-            avg_price_90d REAL,
-            avg_price_1y  REAL,
-            review_score  REAL,
-            review_count  INTEGER,
-            final_score   REAL,
-            analyzed_at   TEXT
+            id             INTEGER PRIMARY KEY AUTOINCREMENT,
+            asin           TEXT NOT NULL,
+            title          TEXT,
+            category       TEXT,
+            current_price  REAL,
+            avg_price_90d  REAL,
+            avg_price_1y   REAL,
+            review_score   REAL,
+            review_count   INTEGER,
+            final_score    REAL,
+            analyzed_at    TEXT
         )
     """)
     conn.commit()
@@ -61,7 +62,7 @@ def save_products(products: List[Dict]):
 
 
 # ---------------------------------------------------------------------------
-# Social Manager DB
+# Social Manager DB - Setup & Ingestion Queries
 # ---------------------------------------------------------------------------
 
 def get_social_connection() -> sqlite3.Connection:
@@ -153,7 +154,7 @@ def get_variations_count(article_id: str, platform: str) -> int:
 
 
 # ---------------------------------------------------------------------------
-# Social Manager DB - Posts CRUD & Lifecycle
+# Social Manager DB - Posts CRUD & Lifecycle Queries
 # ---------------------------------------------------------------------------
 
 def insert_social_post(
@@ -180,7 +181,7 @@ def insert_social_post(
 
 
 def update_social_post_status(post_id: int, status: str, content: Optional[str] = None):
-    """Update post status (e.g. APPROVED, SCHEDULED, PUBLISHED, REJECTED) and optionally content."""
+    """Update post status (e.g. APPROVED, PENDING, PUBLISHED, REJECTED) and optionally content."""
     conn = get_social_connection()
     if content:
         conn.execute("""
@@ -198,8 +199,13 @@ def update_social_post_status(post_id: int, status: str, content: Optional[str] 
     conn.close()
 
 
+def update_post_status(post_id: int, status: str):
+    """Alias for update_social_post_status to seamlessly support dashboard actions."""
+    update_social_post_status(post_id, status)
+
+
 def update_post_telegram_id(post_id: int, message_id: int):
-    """Associate Telegram message ID with a social post for callback routing."""
+    """Associate Telegram message ID with a social post for reference."""
     conn = get_social_connection()
     conn.execute("""
         UPDATE social_posts
@@ -220,16 +226,6 @@ def get_social_post_by_id(post_id: int) -> Optional[sqlite3.Row]:
     return row
 
 
-def get_social_post_by_telegram_id(message_id: int) -> Optional[sqlite3.Row]:
-    """Fetch a single social post record using its associated Telegram message ID."""
-    conn = get_social_connection()
-    cursor = conn.cursor()
-    cursor.execute("SELECT * FROM social_posts WHERE telegram_message_id = ?", (message_id,))
-    row = cursor.fetchone()
-    conn.close()
-    return row
-
-
 # ---------------------------------------------------------------------------
 # Social Manager DB - Scheduling & Publishing Queries
 # ---------------------------------------------------------------------------
@@ -240,7 +236,9 @@ def get_next_approved_post(platform: str) -> Optional[sqlite3.Row]:
     cursor = conn.cursor()
     cursor.execute("""
         SELECT * FROM social_posts
-        WHERE status = 'APPROVED' AND platform = ?
+        WHERE platform = ? 
+          AND status = 'APPROVED' 
+          AND (scheduled_at IS NULL OR scheduled_at = '')
         ORDER BY id ASC
         LIMIT 1
     """, (platform,))
@@ -250,11 +248,11 @@ def get_next_approved_post(platform: str) -> Optional[sqlite3.Row]:
 
 
 def set_post_scheduled(post_id: int, scheduled_at: str):
-    """Assign a scheduled publication timestamp and update status to SCHEDULED."""
+    """Assign a scheduled publication timestamp and update status to APPROVED (SCHEDULED)."""
     conn = get_social_connection()
     conn.execute("""
         UPDATE social_posts
-        SET status = 'SCHEDULED', scheduled_at = ?, updated_at = datetime('now')
+        SET status = 'APPROVED', scheduled_at = ?, updated_at = datetime('now')
         WHERE id = ?
     """, (scheduled_at, post_id))
     conn.commit()
@@ -262,15 +260,16 @@ def set_post_scheduled(post_id: int, scheduled_at: str):
 
 
 def get_due_scheduled_posts() -> List[sqlite3.Row]:
-    """Retrieve all SCHEDULED posts whose publication timestamp has arrived."""
+    """Retrieve all APPROVED posts whose publication timestamp has arrived."""
+    now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     conn = get_social_connection()
     cursor = conn.cursor()
     cursor.execute("""
         SELECT * FROM social_posts
-        WHERE status = 'SCHEDULED'
-          AND scheduled_at <= datetime('now')
+        WHERE status = 'APPROVED'
+          AND scheduled_at <= ?
         ORDER BY scheduled_at ASC
-    """)
+    """, (now_str,))
     rows = cursor.fetchall()
     conn.close()
     return rows
@@ -289,15 +288,13 @@ def mark_post_as_published(post_id: int):
 
 
 def get_latest_scheduled_time(platform: str) -> Optional[str]:
-    """
-    Returns the latest scheduled_at timestamp among all SCHEDULED posts for a given platform.
-    """
+    """Returns the latest scheduled_at timestamp among all APPROVED posts for a given platform."""
     conn = get_social_connection()
     cursor = conn.cursor()
     cursor.execute(
         """
         SELECT MAX(scheduled_at) FROM social_posts 
-        WHERE platform = ? AND status = 'SCHEDULED'
+        WHERE platform = ? AND status = 'APPROVED'
         """,
         (platform,)
     )
@@ -307,12 +304,59 @@ def get_latest_scheduled_time(platform: str) -> Optional[str]:
 
 
 def count_pending_posts() -> int:
-    """
-    Returns the total number of PENDING posts waiting for review.
-    """
+    """Returns the total number of PENDING posts waiting for review."""
     conn = get_social_connection()
     cursor = conn.cursor()
     cursor.execute("SELECT COUNT(*) FROM social_posts WHERE status = 'PENDING'")
     result = cursor.fetchone()
     conn.close()
     return result[0] if result else 0
+
+
+# ---------------------------------------------------------------------------
+# Social Manager DB - Dashboard Queries
+# ---------------------------------------------------------------------------
+
+def get_pending_posts() -> List[sqlite3.Row]:
+    """Retrieve all PENDING posts waiting for moderation in the web dashboard."""
+    conn = get_social_connection()
+    cursor = conn.cursor()
+    cursor.execute("SELECT * FROM social_posts WHERE status = 'PENDING' ORDER BY created_at DESC")
+    rows = cursor.fetchall()
+    conn.close()
+    return rows
+
+
+def get_scheduled_posts() -> List[sqlite3.Row]:
+    """Retrieve all APPROVED posts for the dashboard timeline view."""
+    conn = get_social_connection()
+    cursor = conn.cursor()
+    cursor.execute("SELECT * FROM social_posts WHERE status = 'APPROVED' ORDER BY scheduled_at ASC")
+    rows = cursor.fetchall()
+    conn.close()
+    return rows
+
+def get_approved_and_scheduled_posts() -> List[sqlite3.Row]:
+    """Retrieve all APPROVED posts for the dashboard timeline view."""
+    conn = get_social_connection()
+    cursor = conn.cursor()
+    cursor.execute("SELECT * FROM social_posts WHERE status = 'APPROVED' ORDER BY scheduled_at ASC")
+    rows = cursor.fetchall()
+    conn.close()
+    return rows
+
+
+def update_post_schedule_date(post_id: int, scheduled_at: str):
+    """Update scheduled_at and mark a post as APPROVED and track publication timestamp."""
+    formatted_date = scheduled_at.replace('T', ' ')
+    if len(formatted_date) == 16:  # se è del tipo "YYYY-MM-DD HH:MM"
+        formatted_date += ':00'
+    
+    conn = get_social_connection()
+    conn.execute("""
+        UPDATE social_posts
+        SET status = 'APPROVED', published_at = datetime('now'), updated_at = datetime('now'), scheduled_at = ?
+        WHERE id = ?
+    """, (formatted_date, post_id,))
+    conn.commit()
+    conn.close()
