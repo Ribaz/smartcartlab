@@ -50,9 +50,13 @@ WORDPRESS_USER         = os.getenv("WORDPRESS_USER")
 WORDPRESS_APP_PASSWORD = os.getenv("WORDPRESS_APP_PASSWORD")
 
 # --- LLM / Ollama ---
-OLLAMA_URL             = os.getenv("OLLAMA_URL", "http://localhost:11434")
+OLLAMA_URL             = os.getenv("OLLAMA_URL", "http://127.0.0.1:11434")
 OLLAMA_MODEL           = os.getenv("OLLAMA_MODEL", "gemma3:4b")
 
 # --- Mastodon ---
 MASTODON_API_BASE_URL  = os.getenv("MASTODON_API_BASE_URL", "https://mastodon.social")
 MASTODON_ACCESS_TOKEN  = os.getenv("MASTODON_ACCESS_TOKEN")
+
+# --- Facebook ---
+FACEBOOK_PAGE_ID       = os.getenv("FACEBOOK_PAGE_ID")
+FACEBOOK_ACCESS_TOKEN  = os.getenv("FACEBOOK_ACCESS_TOKEN")
