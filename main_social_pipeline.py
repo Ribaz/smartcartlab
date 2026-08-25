@@ -47,18 +47,34 @@ def process_blog_ingestion(platform: str = "mastodon"):
 
     for article in articles:
         article_id = article["id"]
-        save_blog_article(article)
+        is_new = save_blog_article(article)
         existing_count = get_variations_count(article_id, platform)
+        
+        if existing_count == 3:
+            logger.info(
+                "[%s] Article '%s' already processed.",
+                platform,
+                article["title"],
+            )
+            continue
 
-        if existing_count >= 3:
-            logger.info(f"[{platform}] Article '{article['title']}' already has {existing_count} generated posts. Skipping.")
+        if existing_count != 0:
+            logger.warning(
+                "[%s] Article '%s' has %d generated posts. "
+                "Expected exactly 3. Skipping automatic generation.",
+                platform,
+                article["title"],
+                existing_count,
+            )
             continue
 
         logger.info(f"[{platform}] Generating 3 social post variations for article: {article['title']}")
         generated_posts = generate_social_posts(
             article_title=article["title"],
             article_content=article["content"],
-            article_link=article["link"]
+            article_link=article["link"],
+            platform=platform,
+            language=article.get("lang", "it"),
         )
 
         for post_data in generated_posts:

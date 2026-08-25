@@ -15,6 +15,21 @@ logger = logging.getLogger(__name__)
 # Prompt Engineering & System Directives
 # ---------------------------------------------------------------------------
 
+LANGUAGE_NAMES = {
+    "it": "Italian",
+    "en": "English",
+}
+
+
+def _get_language_instruction(language: str) -> str:
+    try:
+        language_name = LANGUAGE_NAMES[language.lower()]
+    except KeyError:
+        raise ValueError(f"Unsupported language: {language}")
+
+    return f"Write ALL generated posts strictly in {language_name}."
+
+
 def _get_platform_instructions(platform: str) -> str:
     """
     Returns platform-specific guidelines and constraints for the LLM prompt.
@@ -55,16 +70,18 @@ def _get_platform_instructions(platform: str) -> str:
         )
 
 
-def _build_system_prompt(platform: str) -> str:
+def _build_system_prompt(platform: str, language: str) -> str:
     """
     Constructs the dynamic system prompt injecting the correct platform rules.
     """
     platform_rules = _get_platform_instructions(platform)
-    
+    language_rule = _get_language_instruction(language)
+
     return f"""You are the social media copywriter for SmartCartLab, a platform that helps consumers make conscious online purchases by analyzing price history, anomalies, and real value.
 Your task is to read the title and content of a blog article and produce exactly 3 distinct social media post variations tailored for the specified platform.
 
 {platform_rules}
+{language_rule}
 
 Core Constraints:
 1. DO NOT write mere paraphrases of the same text: each post must have a distinct angle and objective:
@@ -108,11 +125,53 @@ def _extract_json_array(raw_text: str) -> Optional[List[Dict]]:
     return None
 
 
+EXPECTED_POSTS = {
+    1: "practical_value",
+    2: "data_insight",
+    3: "engagement_question",
+}
+
+def _validate_generated_posts(posts: object) -> bool:
+
+    if not isinstance(posts, list):
+        return False
+
+    if len(posts) != 3:
+        return False
+
+    found = set()
+
+    for post in posts:
+
+        if not isinstance(post, dict):
+            return False
+
+        number = post.get("variation_number")
+        angle = post.get("angle")
+        content = post.get("content", "").strip()
+
+        if number not in EXPECTED_POSTS:
+            return False
+
+        if number in found:
+            return False
+
+        if angle != EXPECTED_POSTS[number]:
+            return False
+
+        if not content:
+            return False
+
+        found.add(number)
+
+    return found == {1, 2, 3}
+
+
 # ---------------------------------------------------------------------------
 # Gemma Generation Interface
 # ---------------------------------------------------------------------------
 
-def generate_social_posts(article_title: str, article_content: str, article_link: str, platform: str = "mastodon") -> List[Dict]:
+def generate_social_posts(article_title: str, article_content: str, article_link: str, platform: str, language: str ) -> List[Dict]:
     """
     Generate 3 distinct social posts tailored for a specific platform using Gemma via Ollama API.
     Returns a list of dictionaries with 'variation_number' and 'content'.
@@ -146,8 +205,11 @@ def generate_social_posts(article_title: str, article_content: str, article_link
         raw_response = response.json().get("response", "")
 
         posts_data = _extract_json_array(raw_response)
-        if not posts_data or not isinstance(posts_data, list):
-            logger.error(f"[{platform}] Failed to parse valid JSON from Gemma response: {raw_response[:200]}...")
+        if not _validate_generated_posts(posts_data):
+            logger.error(
+                "[%s] Invalid response returned by Gemma.",
+                platform,
+            )
             return []
 
         # Replace the [LINK] placeholder with the actual article link
@@ -157,14 +219,24 @@ def generate_social_posts(article_title: str, article_content: str, article_link
             var_num = item.get("variation_number", len(formatted_posts) + 1)
             formatted_posts.append({
                 "variation_number": var_num,
+                "angle": item["angle"],
                 "content": content
             })
 
         logger.info(f"Successfully generated {len(formatted_posts)} distinct post variations for platform: {platform}.")
         return formatted_posts
 
-    except Exception as e:
-        logger.error(f"Error communicating with Ollama ({url}) for platform {platform}: {e}")
+    except requests.RequestException:
+        logger.exception(
+            "Unable to communicate with Ollama (%s)",
+            url,
+        )
+        return []
+
+    except Exception:
+        logger.exception(
+            "Unexpected error while generating posts."
+        )
         return []
 
 
