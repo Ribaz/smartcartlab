@@ -4,251 +4,861 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>SmartCartLab - Social Dashboard</title>
-    <!-- Bootstrap 5 CDN for clean, responsive layout -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <style>
+        :root {
+            --surface: #ffffff;
+            --surface-subtle: #f8f9fa;
+            --border: #dee2e6;
+            --text-muted: #6c757d;
+            --timeline-day-width: 118px;
+        }
+
+        body {
+            min-height: 100vh;
+        }
+
+        .dashboard-shell {
+            max-width: 1680px;
+        }
+
+        .section-heading {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 1rem;
+            margin-bottom: 1rem;
+        }
+
+        .eyebrow {
+            color: var(--text-muted);
+            font-size: .75rem;
+            font-weight: 700;
+            letter-spacing: .08em;
+            text-transform: uppercase;
+        }
+
+        .article-context {
+            color: inherit;
+            text-decoration: none;
+        }
+
+        .article-context:hover {
+            text-decoration: underline;
+        }
+
+        .review-card textarea {
+            min-height: 132px;
+            resize: vertical;
+        }
+
+        .review-card .card-header {
+            min-height: 78px;
+        }
+
+        .platform-badge[data-platform="mastodon"] {
+            background: #6366f1;
+        }
+
+        .platform-badge[data-platform="facebook"] {
+            background: #0d6efd;
+        }
+
+        .platform-badge[data-platform="instagram"] {
+            background: #d63384;
+        }
+
+        .platform-badge[data-platform="linkedin"] {
+            background: #0a66c2;
+        }
+
+        .timeline-frame {
+            border: 1px solid var(--border);
+            border-radius: .75rem;
+            background: var(--surface);
+            overflow: hidden;
+        }
+
+        .timeline-scroll {
+            overflow-x: auto;
+        }
+
+        .timeline-grid {
+            display: grid;
+            grid-template-columns: 300px repeat(28, var(--timeline-day-width));
+            min-width: max-content;
+        }
+
+        .timeline-header {
+            position: sticky;
+            top: 0;
+            z-index: 4;
+            background: var(--surface-subtle);
+            border-bottom: 1px solid var(--border);
+        }
+
+        .timeline-corner,
+        .timeline-day,
+        .timeline-article,
+        .timeline-cell {
+            border-right: 1px solid var(--border);
+            border-bottom: 1px solid var(--border);
+        }
+
+        .timeline-corner {
+            position: sticky;
+            left: 0;
+            z-index: 6;
+            padding: .9rem 1rem;
+            background: var(--surface-subtle);
+            font-weight: 700;
+        }
+
+        .timeline-day {
+            padding: .65rem .5rem;
+            text-align: center;
+            background: var(--surface-subtle);
+        }
+
+        .timeline-day.is-today {
+            background: #fff3cd;
+        }
+
+        .timeline-article {
+            position: sticky;
+            left: 0;
+            z-index: 3;
+            padding: 1rem;
+            background: var(--surface);
+            border-left: 6px solid var(--article-color);
+        }
+
+        .timeline-cell {
+            min-height: 150px;
+            padding: .45rem;
+            background: color-mix(in srgb, var(--article-color), #fff 96%);
+        }
+
+        .timeline-cell.is-today {
+            background: color-mix(in srgb, var(--article-color), #fff3cd 92%);
+        }
+
+        .timeline-cell.is-drop-target {
+            outline: 3px solid color-mix(in srgb, var(--article-color), #000 8%);
+            outline-offset: -3px;
+            background: color-mix(in srgb, var(--article-color), #fff 86%);
+        }
+
+        .timeline-cell.is-drop-invalid {
+            outline: 2px dashed #dc3545;
+            outline-offset: -2px;
+        }
+
+        .timeline-event {
+            display: block;
+            border: 1px solid color-mix(in srgb, var(--article-color), #000 16%);
+            border-left: 4px solid var(--article-color);
+            border-radius: .5rem;
+            background: color-mix(in srgb, var(--article-color), #fff 84%);
+            padding: .45rem .5rem;
+            margin-bottom: .4rem;
+            color: #212529;
+            font-size: .78rem;
+            line-height: 1.25;
+            text-decoration: none;
+        }
+
+        .timeline-event[draggable="true"] {
+            cursor: grab;
+        }
+
+        .timeline-event[draggable="true"]:active {
+            cursor: grabbing;
+        }
+
+        .timeline-event.is-dragging {
+            opacity: .45;
+            transform: scale(.98);
+        }
+
+        .timeline-event.published {
+            opacity: .68;
+        }
+
+        .timeline-event .event-meta {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: .5rem;
+            margin-bottom: .15rem;
+            font-weight: 700;
+        }
+
+        .timeline-platform-badge {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 2.25rem;
+            padding: .15rem .35rem;
+            border-radius: 999px;
+            color: #fff;
+            font-size: .64rem;
+            font-weight: 800;
+            letter-spacing: .04em;
+            line-height: 1;
+        }
+
+        .timeline-platform-badge[data-platform="facebook"] { background: #0d6efd; }
+        .timeline-platform-badge[data-platform="mastodon"] { background: #6366f1; }
+        .timeline-platform-badge[data-platform="instagram"] { background: #d63384; }
+        .timeline-platform-badge[data-platform="linkedin"] { background: #0a66c2; }
+        .timeline-platform-badge[data-platform="x"],
+        .timeline-platform-badge[data-platform="twitter"] { background: #212529; }
+        .timeline-platform-badge[data-platform="bluesky"] { background: #0285ff; }
+
+        .unscheduled-notice {
+            display: inline-flex;
+            align-items: center;
+            gap: .4rem;
+            margin-top: .8rem;
+            padding: .42rem .58rem;
+            border: 1px solid #ffe69c;
+            border-radius: .5rem;
+            background: #fff3cd;
+            color: #664d03;
+            font-size: .74rem;
+            font-weight: 700;
+            line-height: 1.2;
+        }
+
+        .unscheduled-notice::before {
+            content: "!";
+            display: inline-grid;
+            place-items: center;
+            width: 1.15rem;
+            height: 1.15rem;
+            flex: 0 0 1.15rem;
+            border-radius: 50%;
+            background: #ffc107;
+            color: #212529;
+            font-size: .72rem;
+            font-weight: 900;
+        }
+
+        @keyframes table-row-flash {
+            0%, 100% { background-color: transparent; box-shadow: none; }
+            12%, 72% { background-color: #fff3cd; box-shadow: inset 4px 0 0 #ffc107; }
+        }
+
+        #postsTable tbody tr.row-flash > * {
+            animation: table-row-flash 2.4s ease-out;
+        }
+
+        .article-color-0 { --article-color: #0d6efd; }
+        .article-color-1 { --article-color: #6f42c1; }
+        .article-color-2 { --article-color: #198754; }
+        .article-color-3 { --article-color: #fd7e14; }
+        .article-color-4 { --article-color: #d63384; }
+        .article-color-5 { --article-color: #20c997; }
+        .article-color-6 { --article-color: #6c757d; }
+        .article-color-7 { --article-color: #dc3545; }
+
+        .table-controls {
+            display: grid;
+            grid-template-columns: repeat(4, minmax(170px, 1fr));
+            gap: .75rem;
+        }
+
         th.sortable {
             cursor: pointer;
             user-select: none;
+            white-space: nowrap;
         }
+
         th.sortable:hover {
             background-color: #e9ecef !important;
+        }
+
+        .post-content-cell {
+            min-width: 340px;
+            max-width: 560px;
+        }
+
+        .empty-state {
+            border: 1px dashed var(--border);
+            border-radius: .75rem;
+            background: var(--surface);
+            padding: 2rem;
+            text-align: center;
+        }
+
+
+        .timeline-period-controls {
+            display: flex;
+            align-items: end;
+            justify-content: flex-end;
+            flex-wrap: wrap;
+            gap: .5rem;
+        }
+
+        .timeline-period-controls .date-field {
+            min-width: 145px;
+        }
+
+        .timeline-period-controls label {
+            display: block;
+            margin-bottom: .2rem;
+            color: var(--text-muted);
+            font-size: .72rem;
+            font-weight: 700;
+            text-transform: uppercase;
+        }
+
+        @media (max-width: 991px) {
+            .table-controls {
+                grid-template-columns: 1fr 1fr;
+            }
+        }
+
+        @media (max-width: 575px) {
+            .table-controls {
+                grid-template-columns: 1fr;
+            }
+
+            .timeline-grid {
+                grid-template-columns: 240px repeat(28, 104px);
+            }
         }
     </style>
 </head>
 <body class="bg-light">
+<div class="container-fluid dashboard-shell py-4 px-xl-4">
+    <header class="pb-3 mb-4 border-bottom d-flex justify-content-between align-items-center gap-3">
+        <div>
+            <h1 class="h3 mb-1">🛒 SmartCartLab Social Dashboard</h1>
+            <div class="text-muted small">Editorial review and article distribution</div>
+        </div>
+        <span class="badge bg-secondary">Local Mode</span>
+    </header>
 
-    <div class="container py-4">
-        <header class="pb-3 mb-4 border-bottom d-flex justify-content-between align-items-center">
-            <h1 class="h3">🛒 SmartCartLab Social Dashboard</h1>
-            <span class="badge bg-secondary">Local Mode</span>
-        </header>
+    <!-- Needs your attention -->
+    <section class="mb-5" id="review">
+        <div class="section-heading">
+            <div>
+                <div class="eyebrow">Human review</div>
+                <h2 class="h4 mb-0">Needs your attention <span class="text-muted">({{ pending_posts|length }})</span></h2>
+            </div>
+        </div>
 
-        <!-- HIGH SECTION: Pending Approval Posts -->
-        <section class="mb-5">
-            <h2 class="h4 mb-3 text-primary">📥 Pending Approval ({{ pending_posts|length }})</h2>
-            
-            {% if not pending_posts %}
-                <div class="alert alert-info">No posts awaiting review. Great job!</div>
-            {% else %}
-                <div class="row row-cols-1 row-cols-md-2 g-4">
-                    {% for post in pending_posts %}
-                        <div class="col">
-                            <div class="card h-100 shadow-sm">
-                                <div class="card-header d-flex justify-content-between align-items-center bg-white">
-                                    <div class="d-flex align-items-center gap-2">
-                                        <span class="text-muted small fw-bold">Platform:</span>
-                                        {% set plat = post.platform | lower %}
-                                        <span class="badge 
-                                            {% if 'mastodon' in plat %} text-white" style="background-color: #6366f1;"
-                                            {% elif 'facebook' in plat %} bg-primary
-                                            {% elif 'twitter' in plat or 'x' in plat %} bg-dark
-                                            {% else %} bg-secondary {% endif %}">
-                                            {{ post.platform }}
-                                        </span>
+        {% if not pending_posts %}
+            <div class="alert alert-success mb-0">Nothing is waiting for review.</div>
+        {% else %}
+            <div class="row row-cols-1 row-cols-xl-2 g-4">
+                {% for post in pending_posts %}
+                    <div class="col">
+                        <article class="card review-card h-100 shadow-sm">
+                            <div class="card-header bg-white d-flex justify-content-between align-items-start gap-3">
+                                <div class="min-w-0">
+                                    <div class="d-flex align-items-center flex-wrap gap-2 mb-2">
+                                        <span class="badge platform-badge text-white" data-platform="{{ post.platform|lower }}">{{ post.platform }}</span>
+                                        <span class="text-muted small">Variant #{{ post.variation_number }}</span>
                                     </div>
-                                    <small class="text-muted fw-bold">ID: {{ post.id }} | <span class="fw-normal">Variant #{{ post.variation_number }}</span></small>
+                                    <a class="article-context fw-semibold" href="{{ post.article_link }}" target="_blank" rel="noreferrer">
+                                        📄 {{ post.article_title }}
+                                    </a>
                                 </div>
-                                
-                                <!-- Single form for content management and actions -->
-                                <form method="POST">
-                                    <div class="card-body">
-                                        <div class="mb-2 d-flex justify-content-between align-items-center">
-                                            <label class="form-label small text-muted mb-0">Post Content (editable):</label>
-                                        </div>
-                                        <!-- Textarea for direct text editing -->
-                                        <textarea class="form-control" name="content" rows="4">{{ post.content }}</textarea>
-                                    </div>
-                                    <div class="card-footer bg-white d-flex justify-content-between align-items-center flex-wrap gap-2">
-                                        <div class="d-flex gap-1">
-                                            <button type="submit" formaction="/posts/{{ post.id }}/reject" formnovalidate class="btn btn-outline-danger btn-sm">❌ Reject</button>
-                                            <button type="submit" formaction="/posts/{{ post.id }}/rewrite" formnovalidate class="btn btn-outline-secondary btn-sm" title="Request AI text rewrite">✨ Rewrite</button>
-                                        </div>
-                                        <div class="d-flex gap-1">
-                                            <button type="submit" formaction="/posts/{{ post.id }}/update" class="btn btn-outline-primary btn-sm">💾 Save</button>
-                                            <button type="submit" formaction="/posts/{{ post.id }}/approve" class="btn btn-success btn-sm">✅ Approve</button>
-                                        </div>
-                                    </div>
-                                </form>
+                                <small class="text-muted text-nowrap">Post #{{ post.id }}</small>
                             </div>
-                        </div>
-                    {% endfor %}
+
+                            <form method="POST">
+                                <div class="card-body">
+                                    <label class="form-label small text-muted" for="content-{{ post.id }}">Post content</label>
+                                    <textarea class="form-control" id="content-{{ post.id }}" name="content" rows="5">{{ post.content }}</textarea>
+                                    <div class="d-flex justify-content-end mt-2">
+                                        <small class="text-muted"><span data-character-count>{{ post.content|length }}</span> characters</small>
+                                    </div>
+                                </div>
+
+                                <div class="card-footer bg-white d-flex justify-content-between align-items-center flex-wrap gap-2">
+                                    <div class="d-flex gap-2">
+                                        <button type="submit" formaction="/posts/{{ post.id }}/reject" formnovalidate class="btn btn-outline-danger btn-sm">Reject</button>
+                                        <button type="submit" formaction="/posts/{{ post.id }}/rewrite" formnovalidate class="btn btn-outline-secondary btn-sm">✨ Rewrite</button>
+                                    </div>
+                                    <div class="d-flex gap-2">
+                                        <button type="submit" formaction="/posts/{{ post.id }}/update" class="btn btn-outline-primary btn-sm">Save</button>
+                                        <button type="submit" formaction="/posts/{{ post.id }}/approve" formnovalidate class="btn btn-success btn-sm">Approve</button>
+                                    </div>
+                                </div>
+                            </form>
+                        </article>
+                    </div>
+                {% endfor %}
+            </div>
+        {% endif %}
+    </section>
+
+    <!-- Article-centric timeline -->
+    <section class="mb-5" id="timeline">
+        <div class="section-heading flex-wrap align-items-end">
+            <div>
+                <div class="eyebrow">Article distribution</div>
+                <h2 class="h4 mb-1">Content timeline</h2>
+                <div class="text-muted small">{{ window_start.strftime('%d %b %Y') }} – {{ window_end.strftime('%d %b %Y') }}</div>
+            </div>
+
+            <div class="timeline-period-controls">
+                <div class="btn-group" role="group" aria-label="Timeline navigation">
+                    <a class="btn btn-outline-secondary btn-sm" href="/?start={{ previous_start }}&end={{ previous_end }}#timeline">← Previous</a>
+                    <a class="btn btn-outline-secondary btn-sm" href="/?start={{ today_start }}&end={{ today_end }}#timeline">Today</a>
+                    <a class="btn btn-outline-secondary btn-sm" href="/?start={{ next_start }}&end={{ next_end }}#timeline">Next →</a>
                 </div>
-            {% endif %}
-        </section>
 
-        <hr class="my-4">
-
-        <!-- LOW SECTION: Publishing Queue & Approved Posts -->
-        <section>
-            <h2 class="h4 mb-3 text-success">📅 Publishing Queue & Approved Posts</h2>
-            
-            {% if not scheduled_posts %}
-                <div class="alert alert-warning">No posts currently in the queue or approved.</div>
-            {% else %}
-                <div class="table-responsive bg-white rounded shadow-sm p-3">
-                    <table class="table table-hover align-middle mb-0" id="scheduledTable">
-                        <thead class="table-light">
-                            <tr>
-                                <th class="sortable">ID ↕</th>
-                                <th class="sortable">Status ↕</th>
-                                <th class="sortable">Scheduled Date/Time ↕</th>
-                                <th class="sortable">Platform ↕</th>
-                                <th class="sortable">Content ↕</th>
-                                <th class="sortable">Characters ↕</th>
-                                <th>Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for post in scheduled_posts %}
-                                <tr>
-                                    <td><span class="badge bg-secondary">#{{ post.id }}</span></td>
-                                    <td>
-                                        {% if post.status == 'APPROVED' %}
-                                            <span class="badge bg-success">Approved</span>
-                                        {% elif post.status == 'PENDING' %}
-                                            <span class="badge bg-warning">Pending</span>
-                                        {% elif post.status == 'PUBLISHED' %}
-                                            <span class="badge bg-info text-dark">Published</span>
-                                        {% elif post.status == 'REJECTED' %}
-                                            <span class="badge bg-danger">Rejected</span>
-                                        {% else %}
-                                            <span class="badge bg-secondary">{{ post.status }}</span>
-                                        {% endif %}
-                                    </td>
-                                    <td>
-                                        {% if post.scheduled_at %}
-                                            <strong>{{ post.scheduled_at }}</strong>
-                                        {% else %}
-                                            <span class="text-muted small fst-italic">Pending slot</span>
-                                        {% endif %}
-                                    </td>
-                                    <td>
-                                        {% set plat = post.platform | lower %}
-                                        <span class="badge 
-                                            {% if 'mastodon' in plat %} text-white" style="background-color: #6366f1;"
-                                            {% elif 'facebook' in plat %} bg-primary
-                                            {% elif 'twitter' in plat or 'x' in plat %} bg-dark
-                                            {% else %} bg-secondary {% endif %}">
-                                            {{ post.platform }}
-                                        </span>
-                                    </td>
-                                    <td class="text-truncate" style="max-width: 350px;" title="{{ post.content }}">
-                                        {{ post.content }}
-                                    </td>
-                                    <td>
-                                        <span class="badge bg-light text-dark border">{{ post.content | length }}</span>
-                                    </td>
-                                    <td>
-                                        <div class="d-flex gap-1">
-                                            <button type="button" class="btn btn-outline-secondary btn-sm" 
-                                                    data-bs-toggle="modal" 
-                                                    data-bs-target="#rescheduleModal" 
-                                                    data-post-id="{{ post.id }}" 
-                                                    data-post-date="{{ post.scheduled_at or '' }}"
-                                                    title="Change schedule date">
-                                                📅 Reschedule
-                                            </button>
-                                            <form action="/posts/{{ post.id }}/cancel" method="POST" class="d-inline">
-                                                <button type="submit" class="btn btn-outline-warning btn-sm" title="Revert to pending">Cancel</button>
-                                            </form>
-                                            <form action="/posts/{{ post.id }}/publish-now" method="POST" class="d-inline">
-                                                <button type="submit" class="btn btn-outline-success btn-sm" title="Publish immediately">🚀 Publish Now</button>
-                                            </form>
-                                        </div>
-                                    </td>
-                                </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
-                </div>
-            {% endif %}
-        </section>
-    </div>
-
-    <!-- Reschedule Modal -->
-    <div class="modal fade" id="rescheduleModal" tabindex="-1" aria-labelledby="rescheduleModalLabel" aria-hidden="true">
-        <div class="modal-dialog">
-            <div class="modal-content">
-                <form id="rescheduleForm" method="POST">
-                    <div class="modal-header">
-                        <h5 class="modal-title" id="rescheduleModalLabel">Change Schedule Date</h5>
-                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                <form method="GET" action="/" class="d-flex align-items-end flex-wrap gap-2">
+                    <div class="date-field">
+                        <label for="timelineStart">From</label>
+                        <input id="timelineStart" class="form-control form-control-sm" type="date" name="start" value="{{ window_start.isoformat() }}" required>
                     </div>
-                    <div class="modal-body">
-                        <div class="mb-3">
-                            <label for="scheduled_at_input" class="form-label">New Date & Time:</label>
-                            <input type="datetime-local" class="form-control" id="scheduled_at_input" name="scheduled_at" required>
-                        </div>
+                    <div class="date-field">
+                        <label for="timelineEnd">To</label>
+                        <input id="timelineEnd" class="form-control form-control-sm" type="date" name="end" value="{{ window_end.isoformat() }}" required>
                     </div>
-                    <div class="modal-footer">
-                        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
-                        <button type="submit" class="btn btn-primary">Save Changes</button>
-                    </div>
+                    <button class="btn btn-primary btn-sm" type="submit">Apply</button>
                 </form>
             </div>
         </div>
+
+        {% if not article_groups %}
+            <div class="empty-state">No articles have social activity in the selected period.</div>
+        {% else %}
+            <div class="timeline-frame shadow-sm">
+                <div class="timeline-scroll">
+                    <div class="timeline-grid timeline-header" style="grid-template-columns: 300px repeat({{ timeline_days|length }}, var(--timeline-day-width));">
+                        <div class="timeline-corner">Article / campaign</div>
+                        {% for day in timeline_days %}
+                            <div class="timeline-day {% if day == today %}is-today{% endif %}">
+                                <div class="small text-uppercase text-muted">{{ day.strftime('%a') }}</div>
+                                <strong>{{ day.strftime('%d %b') }}</strong>
+                            </div>
+                        {% endfor %}
+                    </div>
+
+                    {% for article in article_groups %}
+                        <div class="timeline-grid article-color-{{ article.color_index }}" style="grid-template-columns: 300px repeat({{ timeline_days|length }}, var(--timeline-day-width));">
+                            <div class="timeline-article">
+                                <div class="d-flex gap-3">
+                                    {% if article.media_url %}
+                                        <img src="{{ article.media_url }}" alt="" width="54" height="54" class="rounded object-fit-cover flex-shrink-0">
+                                    {% endif %}
+                                    <div class="min-w-0">
+                                        <a class="article-context fw-semibold d-block" href="{{ article.link }}" target="_blank" rel="noreferrer">{{ article.title }}</a>
+                                        <div class="small text-muted mt-1">Article {{ article.id }}{% if article.pub_date %} · {{ article.pub_date[:16]|replace('T', ' ') }}{% endif %}</div>
+                                    </div>
+                                </div>
+
+                                {% if is_default_window and article.unscheduled %}
+                                    <div class="unscheduled-notice">
+                                        {{ article.unscheduled|length }} approved post{% if article.unscheduled|length != 1 %}s{% endif %} without a schedule
+                                    </div>
+                                {% endif %}
+                            </div>
+
+                            {% for day in timeline_days %}
+                                <div class="timeline-cell {% if day == today %}is-today{% endif %}"
+                                     data-date="{{ day.isoformat() }}">
+                                    {% for post in article.posts_by_day[day.isoformat()] %}
+                                        <a href="#post-row-{{ post.id }}"
+                                           class="timeline-event {% if post.status == 'PUBLISHED' %}published{% endif %}"
+                                           title="{{ post.content }}"
+                                           data-post-id="{{ post.id }}"
+                                           data-post-status="{{ post.status }}"
+                                           data-post-date="{{ post.scheduled_at or post.published_at or '' }}"
+                                           {% if post.status == 'APPROVED' %}draggable="true" aria-label="Drag to reschedule post {{ post.id }}"{% endif %}>
+                                            <span class="event-meta">
+                                                {% set platform_key = post.platform|lower %}
+                                                <span class="timeline-platform-badge" data-platform="{{ platform_key }}">
+                                                    {% if platform_key == 'facebook' %}FBK
+                                                    {% elif platform_key == 'mastodon' %}MSD
+                                                    {% elif platform_key == 'instagram' %}IGR
+                                                    {% elif platform_key == 'linkedin' %}LNK
+                                                    {% elif platform_key in ['twitter', 'x'] %}X
+                                                    {% elif platform_key == 'bluesky' %}BSK
+                                                    {% else %}{{ post.platform[:3]|upper }}{% endif %}
+                                                </span>
+                                                <span>{{ post.event_time }}</span>
+                                            </span>
+                                            <span class="d-block text-muted">Variant {{ post.variation_number }} · {{ post.status|lower }}</span>
+                                        </a>
+                                    {% endfor %}
+                                </div>
+                            {% endfor %}
+                        </div>
+                    {% endfor %}
+                </div>
+            </div>
+        {% endif %}
+    </section>
+
+    <!-- Full administrative table -->
+    <section id="all-posts">
+        <div class="section-heading">
+            <div>
+                <div class="eyebrow">Administrative view</div>
+                <h2 class="h4 mb-0">All posts</h2>
+            </div>
+        </div>
+
+        <div class="card border-0 shadow-sm">
+            <div class="card-body border-bottom">
+                <div class="table-controls">
+                    <div>
+                        <label class="form-label small text-muted" for="statusFilter">View</label>
+                        <select class="form-select form-select-sm" id="statusFilter">
+                            <option value="upcoming" selected>Upcoming / active</option>
+                            <option value="all">All statuses</option>
+                            <option value="PENDING">Pending</option>
+                            <option value="APPROVED">Approved</option>
+                            <option value="PUBLISHED">Published</option>
+                            <option value="REJECTED">Rejected</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="form-label small text-muted" for="platformFilter">Platform</label>
+                        <select class="form-select form-select-sm" id="platformFilter">
+                            <option value="all">All platforms</option>
+                            {% for platform in platforms %}
+                                <option value="{{ platform|lower }}">{{ platform }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div>
+                        <label class="form-label small text-muted" for="articleFilter">Article</label>
+                        <select class="form-select form-select-sm" id="articleFilter">
+                            <option value="all">All articles</option>
+                            {% for article_id, article_title in articles %}
+                                <option value="{{ article_id }}">{{ article_title }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div>
+                        <label class="form-label small text-muted" for="searchFilter">Search</label>
+                        <input class="form-control form-control-sm" id="searchFilter" type="search" placeholder="Post text or article title">
+                    </div>
+                </div>
+            </div>
+
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0" id="postsTable">
+                    <thead class="table-light">
+                    <tr>
+                        <th class="sortable">ID ↕</th>
+                        <th class="sortable">Status ↕</th>
+                        <th class="sortable">Date / time ↕</th>
+                        <th class="sortable">Platform ↕</th>
+                        <th class="sortable">Article ↕</th>
+                        <th>Content</th>
+                        <th class="sortable">Characters ↕</th>
+                        <th>Actions</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    {% for post in all_posts %}
+                        <tr id="post-row-{{ post.id }}"
+                            data-status="{{ post.status }}"
+                            data-platform="{{ post.platform|lower }}"
+                            data-article="{{ post.article_id }}"
+                            data-search="{{ (post.article_title ~ ' ' ~ post.content)|lower|e }}">
+                            <td data-sort-value="{{ post.id }}"><span class="badge text-bg-secondary">#{{ post.id }}</span></td>
+                            <td data-sort-value="{{ post.status }}">
+                                {% if post.status == 'APPROVED' %}
+                                    <span class="badge text-bg-success">Approved</span>
+                                    {% if not post.scheduled_at %}<span class="badge text-bg-light border text-dark">Unscheduled</span>{% endif %}
+                                {% elif post.status == 'PENDING' %}
+                                    <span class="badge text-bg-warning">Pending</span>
+                                {% elif post.status == 'PUBLISHED' %}
+                                    <span class="badge text-bg-info">Published</span>
+                                {% elif post.status == 'REJECTED' %}
+                                    <span class="badge text-bg-secondary">Rejected</span>
+                                {% endif %}
+                            </td>
+                            <td data-sort-value="{{ post.published_at or post.scheduled_at or '' }}">
+                                {% if post.status == 'PUBLISHED' and post.published_at %}
+                                    <strong>{{ post.published_at }}</strong>
+                                    <div class="small text-muted">Published</div>
+                                {% elif post.scheduled_at %}
+                                    <strong>{{ post.scheduled_at }}</strong>
+                                    <div class="small text-muted">Scheduled</div>
+                                {% else %}
+                                    <span class="text-muted fst-italic">No date</span>
+                                {% endif %}
+                            </td>
+                            <td data-sort-value="{{ post.platform|lower }}">
+                                <span class="badge platform-badge text-white" data-platform="{{ post.platform|lower }}">{{ post.platform }}</span>
+                            </td>
+                            <td data-sort-value="{{ post.article_title|lower }}">
+                                <a href="{{ post.article_link }}" target="_blank" rel="noreferrer" class="article-context fw-semibold">{{ post.article_title }}</a>
+                                <div class="small text-muted">Variant {{ post.variation_number }}</div>
+                            </td>
+                            <td class="post-content-cell">
+                                <div class="text-truncate" style="max-width: 520px" title="{{ post.content }}">{{ post.content }}</div>
+                            </td>
+                            <td data-sort-value="{{ post.content|length }}"><span class="badge text-bg-light border">{{ post.content|length }}</span></td>
+                            <td>
+                                <div class="d-flex flex-wrap gap-1">
+                                    {% if post.status == 'APPROVED' %}
+                                        <button type="button"
+                                                class="btn btn-secondary btn-sm"
+                                                data-bs-toggle="modal"
+                                                data-bs-target="#rescheduleModal"
+                                                data-post-id="{{ post.id }}"
+                                                data-post-date="{{ post.scheduled_at or '' }}">
+                                            Schedule
+                                        </button>
+                                        <form action="/posts/{{ post.id }}/cancel" method="POST" class="d-inline">
+                                            <button type="submit" class="btn btn-warning btn-sm text-dark">Return to review</button>
+                                        </form>
+                                        <form action="/posts/{{ post.id }}/publish-now" method="POST" class="d-inline">
+                                            <button type="submit" class="btn btn-success btn-sm">Publish now</button>
+                                        </form>
+                                    {% elif post.status == 'REJECTED' %}
+                                        <form action="/posts/{{ post.id }}/restore" method="POST" class="d-inline">
+                                            <button type="submit" class="btn btn-primary btn-sm">Restore to pending</button>
+                                        </form>
+                                    {% else %}
+                                        <span class="text-muted small">—</span>
+                                    {% endif %}
+                                </div>
+                            </td>
+                        </tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            <div class="card-footer bg-white text-muted small"><span id="visiblePostCount">0</span> posts shown</div>
+        </div>
+    </section>
+</div>
+
+<!-- Schedule modal -->
+<div class="modal fade" id="rescheduleModal" tabindex="-1" aria-labelledby="rescheduleModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form id="rescheduleForm" method="POST">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="rescheduleModalLabel">Schedule post</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <label for="scheduled_at_input" class="form-label">Publication date and time</label>
+                    <input type="datetime-local" class="form-control" id="scheduled_at_input" name="scheduled_at" required>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Save schedule</button>
+                </div>
+            </form>
+        </div>
     </div>
+</div>
 
-    <!-- Table Column Sorting & Button Loading Scripts -->
-    <script>
-        // Sortable table columns
-        document.querySelectorAll('th.sortable').forEach((th, index) => {
-            let ascending = true;
-            th.addEventListener('click', () => {
-                const table = th.closest('table');
-                const tbody = table.querySelector('tbody');
-                const rows = Array.from(tbody.querySelectorAll('tr'));
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script>
 
-                rows.sort((a, b) => {
-                    const aText = a.children[index].innerText.trim();
-                    const bText = b.children[index].innerText.trim();
-                    return ascending ? aText.localeCompare(bText, 'en', {numeric: true}) : bText.localeCompare(aText, 'en', {numeric: true});
-                });
+    // Position the timeline so that yesterday is still hinted at,
+    // today sits near the left edge and the upcoming days dominate the viewport.
+    const timelineScroll = document.querySelector('.timeline-scroll');
+    const todayHeader = document.querySelector('.timeline-header .timeline-day.is-today');
+    if (timelineScroll && todayHeader) {
+        requestAnimationFrame(() => {
+            const articleColumnWidth = document.querySelector('.timeline-corner')?.offsetWidth ?? 300;
+            const dayWidth = todayHeader.offsetWidth;
+            const pastHint = Math.round(dayWidth * 1.15);
+            timelineScroll.scrollLeft = Math.max(0, todayHeader.offsetLeft - articleColumnWidth - pastHint);
+        });
+    }
 
-                rows.forEach(row => tbody.appendChild(row));
-                ascending = !ascending;
-            });
+    // Live character counters in review cards.
+    document.querySelectorAll('.review-card textarea').forEach(textarea => {
+        const card = textarea.closest('.review-card');
+        const counter = card?.querySelector('[data-character-count]');
+        if (!counter) return;
+        textarea.addEventListener('input', () => counter.textContent = textarea.value.length);
+    });
+
+    // Schedule modal population and programmatic opening from drag & drop.
+    const rescheduleModal = document.getElementById('rescheduleModal');
+    const rescheduleForm = document.getElementById('rescheduleForm');
+    const scheduledAtInput = document.getElementById('scheduled_at_input');
+
+    function prepareScheduleModal(postId, postDate = '') {
+        rescheduleForm.action = `/posts/${postId}/reschedule`;
+        scheduledAtInput.value = postDate ? postDate.replace(' ', 'T').slice(0, 16) : '';
+    }
+
+    function openScheduleModal(postId, postDate = '') {
+        prepareScheduleModal(postId, postDate);
+        bootstrap.Modal.getOrCreateInstance(rescheduleModal).show();
+        window.setTimeout(() => scheduledAtInput.focus(), 180);
+    }
+
+    rescheduleModal?.addEventListener('show.bs.modal', event => {
+        const trigger = event.relatedTarget;
+        if (!trigger) return;
+        prepareScheduleModal(
+            trigger.getAttribute('data-post-id'),
+            trigger.getAttribute('data-post-date') || ''
+        );
+    });
+
+    // Drag an APPROVED event onto another day. The existing Schedule modal
+    // opens with the new day and the current time preserved for quick editing.
+    let draggedTimelineEvent = null;
+    let lastTimelineDragEndedAt = 0;
+
+    function combineDateWithExistingTime(targetDate, currentDateTime) {
+        const currentValue = (currentDateTime || '').replace(' ', 'T');
+        const timePart = currentValue.length >= 16 ? currentValue.slice(11, 16) : '14:00';
+        return `${targetDate}T${timePart}`;
+    }
+
+    document.querySelectorAll('.timeline-event[draggable="true"]').forEach(eventCard => {
+        eventCard.addEventListener('dragstart', event => {
+            draggedTimelineEvent = eventCard;
+            eventCard.classList.add('is-dragging');
+            event.dataTransfer.effectAllowed = 'move';
+            event.dataTransfer.setData('text/plain', eventCard.dataset.postId);
         });
 
-        // Reschedule modal population
-        const rescheduleModal = document.getElementById('rescheduleModal');
-        if (rescheduleModal) {
-            rescheduleModal.addEventListener('show.bs.modal', event => {
-                const button = event.relatedTarget;
-                const postId = button.getAttribute('data-post-id');
-                const postDate = button.getAttribute('data-post-date');
-                
-                const form = document.getElementById('rescheduleForm');
-                form.action = `/posts/${postId}/reschedule`;
-                
-                const input = document.getElementById('scheduled_at_input');
-                if (postDate && postDate !== 'None') {
-                    input.value = postDate.replace(' ', 'T');
-                } else {
-                    input.value = '';
-                }
+        eventCard.addEventListener('dragend', () => {
+            lastTimelineDragEndedAt = Date.now();
+            eventCard.classList.remove('is-dragging');
+            document.querySelectorAll('.timeline-cell').forEach(cell => {
+                cell.classList.remove('is-drop-target', 'is-drop-invalid');
             });
-        }
-
-        // Action Buttons Loading Spinner
-        document.querySelectorAll('button[type="submit"]').forEach(btn => {
-            btn.addEventListener('click', function () {
-                const form = this.closest('form');
-                if (!form) return;
-
-                // Lock button width to prevent jumpy layout changes
-                this.style.minWidth = `${this.offsetWidth}px`;
-
-                // Slight delay to ensure the browser registers form submission & formaction
-                setTimeout(() => {
-                    this.disabled = true;
-                    this.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>';
-                }, 20);
-            });
+            draggedTimelineEvent = null;
         });
-    </script>
-    <!-- Bootstrap JS Bundle CDN -->
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    });
+
+    document.querySelectorAll('.timeline-cell[data-date]').forEach(dayCell => {
+        dayCell.addEventListener('dragover', event => {
+            if (!draggedTimelineEvent) return;
+            event.preventDefault();
+            event.dataTransfer.dropEffect = 'move';
+            dayCell.classList.add('is-drop-target');
+        });
+
+        dayCell.addEventListener('dragleave', event => {
+            if (!dayCell.contains(event.relatedTarget)) {
+                dayCell.classList.remove('is-drop-target');
+            }
+        });
+
+        dayCell.addEventListener('drop', event => {
+            event.preventDefault();
+            dayCell.classList.remove('is-drop-target');
+            if (!draggedTimelineEvent) return;
+
+            const postId = draggedTimelineEvent.dataset.postId;
+            const currentDate = draggedTimelineEvent.dataset.postDate || '';
+            const targetDate = dayCell.dataset.date;
+            const nextDateTime = combineDateWithExistingTime(targetDate, currentDate);
+
+            openScheduleModal(postId, nextDateTime);
+        });
+    });
+
+    // Table filtering.
+    const statusFilter = document.getElementById('statusFilter');
+    const platformFilter = document.getElementById('platformFilter');
+    const articleFilter = document.getElementById('articleFilter');
+    const searchFilter = document.getElementById('searchFilter');
+    const tableRows = Array.from(document.querySelectorAll('#postsTable tbody tr'));
+    const visiblePostCount = document.getElementById('visiblePostCount');
+
+    function applyFilters() {
+        const status = statusFilter.value;
+        const platform = platformFilter.value;
+        const article = articleFilter.value;
+        const search = searchFilter.value.trim().toLowerCase();
+        let visible = 0;
+
+        tableRows.forEach(row => {
+            const rowStatus = row.dataset.status;
+            const statusMatches = status === 'all'
+                || (status === 'upcoming' && ['PENDING', 'APPROVED'].includes(rowStatus))
+                || status === rowStatus;
+            const platformMatches = platform === 'all' || platform === row.dataset.platform;
+            const articleMatches = article === 'all' || article === row.dataset.article;
+            const searchMatches = !search || row.dataset.search.includes(search);
+            const show = statusMatches && platformMatches && articleMatches && searchMatches;
+            row.classList.toggle('d-none', !show);
+            if (show) visible += 1;
+        });
+
+        visiblePostCount.textContent = visible;
+    }
+
+    [statusFilter, platformFilter, articleFilter].forEach(control => control.addEventListener('change', applyFilters));
+    searchFilter.addEventListener('input', applyFilters);
+    applyFilters();
+
+    // Column sorting using explicit semantic sort values when available.
+    document.querySelectorAll('#postsTable th.sortable').forEach((th, index) => {
+        let ascending = true;
+        th.addEventListener('click', () => {
+            const tbody = th.closest('table').querySelector('tbody');
+            const rows = Array.from(tbody.querySelectorAll('tr'));
+            rows.sort((a, b) => {
+                const aCell = a.children[index];
+                const bCell = b.children[index];
+                const aValue = aCell.dataset.sortValue ?? aCell.innerText.trim();
+                const bValue = bCell.dataset.sortValue ?? bCell.innerText.trim();
+                return ascending
+                    ? aValue.localeCompare(bValue, 'en', {numeric: true})
+                    : bValue.localeCompare(aValue, 'en', {numeric: true});
+            });
+            rows.forEach(row => tbody.appendChild(row));
+            ascending = !ascending;
+        });
+    });
+
+    // Briefly highlight the table row reached from a timeline event.
+    function highlightTargetRow() {
+        if (!window.location.hash.startsWith('#post-row-')) return;
+
+        const row = document.querySelector(window.location.hash);
+        if (!row) return;
+
+        row.classList.remove('row-flash');
+        void row.offsetWidth;
+        row.classList.add('row-flash');
+        window.setTimeout(() => row.classList.remove('row-flash'), 2500);
+    }
+
+    document.querySelectorAll('.timeline-event[href^="#post-row-"]').forEach(eventLink => {
+        eventLink.addEventListener('click', event => {
+            if (Date.now() - lastTimelineDragEndedAt < 350) {
+                event.preventDefault();
+                return;
+            }
+            window.setTimeout(highlightTargetRow, 80);
+        });
+    });
+
+    window.addEventListener('hashchange', () => window.setTimeout(highlightTargetRow, 80));
+    window.addEventListener('load', highlightTargetRow);
+
+    // Loading feedback for submit actions.
+    document.querySelectorAll('button[type="submit"]').forEach(button => {
+        button.addEventListener('click', function () {
+            const form = this.closest('form');
+            if (!form || !form.checkValidity()) return;
+            this.style.minWidth = `${this.offsetWidth}px`;
+            setTimeout(() => {
+                this.disabled = true;
+                this.innerHTML = '<span class="spinner-border spinner-border-sm" aria-hidden="true"></span>';
+            }, 20);
+        });
+    });
+</script>
 </body>
 </html>
