@@ -178,7 +178,7 @@ def generate_social_posts(article_title: str, article_content: str, article_link
     """
     cleaned_content = _strip_html_tags(article_content)[:2500]  # Limit content size to safeguard context window
     
-    system_prompt = _build_system_prompt(platform)
+    system_prompt = _build_system_prompt(platform, language)
     
     user_prompt = (
         f"Article Title: {article_title}\n"

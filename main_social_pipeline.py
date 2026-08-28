@@ -21,6 +21,8 @@ from src.integrations.wordpress import get_latest_posts
 from src.integrations.mastodon import post_to_mastodon
 from src.integrations.facebook import post_to_facebook
 from src.ai.generator import generate_social_posts
+from config.settings import TELEGRAM_BOT_TOKEN, TELEGRAM_CHANNEL_ID
+
 
 logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
@@ -175,16 +177,14 @@ def process_publishing():
 
 def send_telegram_one_shot_notification(count: int):
     """Send a single Telegram reminder message about pending posts."""
-    token = os.getenv("TELEGRAM_BOT_TOKEN")
-    chat_id = os.getenv("TELEGRAM_CHAT_ID")
-    if not token or not chat_id:
+    if not TELEGRAM_BOT_TOKEN or not TELEGRAM_CHAT_ID:
         logger.warning("Telegram credentials not found. Skipping notification.")
         return
 
-    url = f"https://api.telegram.org/bot{token}/sendMessage"
+    url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
     message = f"📢 *SmartCartLab Social*\nThere are *{count} new posts* waiting for your review in the local dashboard!"
     payload = {
-        "chat_id": chat_id,
+        "chat_id": TELEGRAM_CHAT_ID,
         "text": message,
         "parse_mode": "Markdown"
     }
