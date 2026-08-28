@@ -341,62 +341,6 @@
         <span class="badge bg-secondary">Local Mode</span>
     </header>
 
-    <!-- Needs your attention -->
-    <section class="mb-5" id="review">
-        <div class="section-heading">
-            <div>
-                <div class="eyebrow">Human review</div>
-                <h2 class="h4 mb-0">Needs your attention <span class="text-muted">({{ pending_posts|length }})</span></h2>
-            </div>
-        </div>
-
-        {% if not pending_posts %}
-            <div class="alert alert-success mb-0">Nothing is waiting for review.</div>
-        {% else %}
-            <div class="row row-cols-1 row-cols-xl-2 g-4">
-                {% for post in pending_posts %}
-                    <div class="col">
-                        <article class="card review-card h-100 shadow-sm">
-                            <div class="card-header bg-white d-flex justify-content-between align-items-start gap-3">
-                                <div class="min-w-0">
-                                    <div class="d-flex align-items-center flex-wrap gap-2 mb-2">
-                                        <span class="badge platform-badge text-white" data-platform="{{ post.platform|lower }}">{{ post.platform }}</span>
-                                        <span class="text-muted small">Variant #{{ post.variation_number }}</span>
-                                    </div>
-                                    <a class="article-context fw-semibold" href="{{ post.article_link }}" target="_blank" rel="noreferrer">
-                                        📄 {{ post.article_title }}
-                                    </a>
-                                </div>
-                                <small class="text-muted text-nowrap">Post #{{ post.id }}</small>
-                            </div>
-
-                            <form method="POST">
-                                <div class="card-body">
-                                    <label class="form-label small text-muted" for="content-{{ post.id }}">Post content</label>
-                                    <textarea class="form-control" id="content-{{ post.id }}" name="content" rows="5">{{ post.content }}</textarea>
-                                    <div class="d-flex justify-content-end mt-2">
-                                        <small class="text-muted"><span data-character-count>{{ post.content|length }}</span> characters</small>
-                                    </div>
-                                </div>
-
-                                <div class="card-footer bg-white d-flex justify-content-between align-items-center flex-wrap gap-2">
-                                    <div class="d-flex gap-2">
-                                        <button type="submit" formaction="/posts/{{ post.id }}/reject" formnovalidate class="btn btn-outline-danger btn-sm">Reject</button>
-                                        <button type="submit" formaction="/posts/{{ post.id }}/rewrite" formnovalidate class="btn btn-outline-secondary btn-sm">✨ Rewrite</button>
-                                    </div>
-                                    <div class="d-flex gap-2">
-                                        <button type="submit" formaction="/posts/{{ post.id }}/update" class="btn btn-outline-primary btn-sm">Save</button>
-                                        <button type="submit" formaction="/posts/{{ post.id }}/approve" formnovalidate class="btn btn-success btn-sm">Approve</button>
-                                    </div>
-                                </div>
-                            </form>
-                        </article>
-                    </div>
-                {% endfor %}
-            </div>
-        {% endif %}
-    </section>
-
     <!-- Article-centric timeline -->
     <section class="mb-5" id="timeline">
         <div class="section-heading flex-wrap align-items-end">
@@ -497,6 +441,64 @@
             </div>
         {% endif %}
     </section>
+
+
+    <!-- Needs your attention -->
+    <section class="mb-5" id="review">
+        <div class="section-heading">
+            <div>
+                <div class="eyebrow">Human review</div>
+                <h2 class="h4 mb-0">Needs your attention <span class="text-muted">({{ pending_posts|length }})</span></h2>
+            </div>
+        </div>
+
+        {% if not pending_posts %}
+            <div class="alert alert-success mb-0">Nothing is waiting for review.</div>
+        {% else %}
+            <div class="row row-cols-1 row-cols-xl-2 g-4">
+                {% for post in pending_posts %}
+                    <div class="col">
+                        <article class="card review-card h-100 shadow-sm">
+                            <div class="card-header bg-white d-flex justify-content-between align-items-start gap-3">
+                                <div class="min-w-0">
+                                    <div class="d-flex align-items-center flex-wrap gap-2 mb-2">
+                                        <span class="badge platform-badge text-white" data-platform="{{ post.platform|lower }}">{{ post.platform }}</span>
+                                        <span class="text-muted small">Variant #{{ post.variation_number }}</span>
+                                    </div>
+                                    <a class="article-context fw-semibold" href="{{ post.article_link }}" target="_blank" rel="noreferrer">
+                                        📄 {{ post.article_title }}
+                                    </a>
+                                </div>
+                                <small class="text-muted text-nowrap">Post #{{ post.id }}</small>
+                            </div>
+
+                            <form method="POST">
+                                <div class="card-body">
+                                    <label class="form-label small text-muted" for="content-{{ post.id }}">Post content</label>
+                                    <textarea class="form-control" id="content-{{ post.id }}" name="content" rows="5">{{ post.content }}</textarea>
+                                    <div class="d-flex justify-content-end mt-2">
+                                        <small class="text-muted"><span data-character-count>{{ post.content|length }}</span> characters</small>
+                                    </div>
+                                </div>
+
+                                <div class="card-footer bg-white d-flex justify-content-between align-items-center flex-wrap gap-2">
+                                    <div class="d-flex gap-2">
+                                        <button type="submit" formaction="/posts/{{ post.id }}/reject" formnovalidate class="btn btn-outline-danger btn-sm">Reject</button>
+                                        <button type="submit" formaction="/posts/{{ post.id }}/rewrite" formnovalidate class="btn btn-outline-secondary btn-sm">✨ Rewrite</button>
+                                    </div>
+                                    <div class="d-flex gap-2">
+                                        <button type="submit" formaction="/posts/{{ post.id }}/update" class="btn btn-outline-primary btn-sm">Save</button>
+                                        <button type="submit" formaction="/posts/{{ post.id }}/approve" formnovalidate class="btn btn-success btn-sm">Approve</button>
+                                    </div>
+                                </div>
+                            </form>
+                        </article>
+                    </div>
+                {% endfor %}
+            </div>
+        {% endif %}
+    </section>
+    
 
     <!-- Full administrative table -->
     <section id="all-posts">
