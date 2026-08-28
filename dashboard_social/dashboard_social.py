@@ -30,7 +30,7 @@ logger = logging.getLogger(__name__)
 
 app = FastAPI(title="SmartCartLab Social Dashboard")
 BASE_DIR = Path(__file__).resolve().parent
-templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
+templates = Jinja2Templates(directory=str(BASE_DIR))
 
 TIMELINE_DAYS = 28
 TIMELINE_PAST_DAYS = 7
@@ -379,4 +379,9 @@ def reschedule_post(post_id: int, scheduled_at: str = Form(...)):
 if __name__ == "__main__":
     import uvicorn
 
-    uvicorn.run("dashboard_social:app", host="0.0.0.0", port=8000, reload=True)
+    uvicorn.run(
+        "dashboard_social.dashboard_social:app",
+        host="0.0.0.0",
+        port=8000,
+        reload=True,
+    )
