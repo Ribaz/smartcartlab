@@ -12,6 +12,7 @@ from typing import Dict, List, Optional
 from config.settings import DB_PATH, SOCIAL_DB_PATH
 
 VALID_SOCIAL_STATUSES = {"PENDING", "APPROVED", "PUBLISHED", "REJECTED"}
+VALID_ARTICLE_STATUSES = {"NEW", "GENERATED", "FAILED"}
 
 
 # ---------------------------------------------------------------------------
@@ -106,6 +107,7 @@ def initialize_social_db():
                 link       TEXT NOT NULL,
                 pub_date   TEXT,
                 media_url  TEXT,
+                processing_status TEXT NOT NULL DEFAULT 'NEW',
                 created_at TEXT DEFAULT (datetime('now'))
             )
             """
@@ -171,6 +173,45 @@ def save_blog_article(article: Dict) -> bool:
         )
     return True
 
+
+def get_blog_articles_by_status(status: str) -> List[sqlite3.Row]:
+    """Return blog articles having the requested processing status."""
+    if status not in VALID_ARTICLE_STATUSES:
+        allowed = ", ".join(sorted(VALID_ARTICLE_STATUSES))
+        raise ValueError(
+            f"Unsupported article status '{status}'. Allowed: {allowed}"
+        )
+
+    with get_social_connection() as conn:
+        return conn.execute(
+            """
+            SELECT *
+            FROM blog_articles
+            WHERE processing_status = ?
+            ORDER BY pub_date ASC, created_at ASC
+            """,
+            (status,),
+        ).fetchall()
+
+
+def update_blog_article_status(article_id: str, status: str) -> None:
+    """Update the processing status of a blog article."""
+    if status not in VALID_ARTICLE_STATUSES:
+        allowed = ", ".join(sorted(VALID_ARTICLE_STATUSES))
+        raise ValueError(
+            f"Unsupported article status '{status}'. Allowed: {allowed}"
+        )
+
+    with get_social_connection() as conn:
+        conn.execute(
+            """
+            UPDATE blog_articles
+            SET processing_status = ?
+            WHERE id = ?
+            """,
+            (status, article_id),
+        )
+        
 
 def get_variations_count(article_id: str, platform: str) -> int:
     """Count variations that already exist for an article/platform pair."""
