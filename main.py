@@ -10,7 +10,8 @@ from core.fetcher.fake_fetcher import FakeFetcher as Fetcher
 from core.scorer.pillar_scorer import PillarScorer as Scorer
 from core.publisher.telegram_publisher import TelegramPublisher
 from core.publisher.wordpress_publisher import WordPressPublisher
-from database.db_helpers import initialize_db, save_products
+from database.schema_core import initialize_db
+from database.products import save_products
 
 from datetime import datetime
 
