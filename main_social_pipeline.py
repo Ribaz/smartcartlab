@@ -18,8 +18,8 @@ from utils.db_helpers import (
     update_blog_article_status,
     is_scheduling_slot_taken
 )
-from src.integrations.wordpress import get_latest_posts
 from src.ai.generator import generate_social_posts
+from social.ingestion import process_wordpress_ingestion
 from social.publishing import process_publishing
 from config.settings import TELEGRAM_BOT_TOKEN, TELEGRAM_CHANNEL_ID
 
@@ -43,25 +43,6 @@ logger = logging.getLogger(__name__)
 # ---------------------------------------------------------------------------
 # 1. Ingestion & Multi-Angle Post Generation
 # ---------------------------------------------------------------------------
-
-def process_wordpress_ingestion():
-    """Fetch WordPress once and save newly discovered articles."""
-    logger.info("Phase 1: Checking WordPress for new articles...")
-
-    articles = get_latest_posts(limit=3, lang="it")
-
-    if not articles:
-        logger.info("No articles returned from WordPress.")
-        return
-
-    new_articles = 0
-
-    for article in articles:
-        if save_blog_article(article):
-            new_articles += 1
-            logger.info("Saved new article: %s", article["title"])
-
-    logger.info("WordPress ingestion completed: %d new articles.", new_articles)
 
 
 def process_new_articles(platforms: list[str]):
