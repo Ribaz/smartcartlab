@@ -380,7 +380,7 @@ if __name__ == "__main__":
     import uvicorn
 
     uvicorn.run(
-        "dashboard_social.dashboard_social:app",
+        "social_dashboard.dashboard_social:app",
         host="0.0.0.0",
         port=8000,
         reload=True,
