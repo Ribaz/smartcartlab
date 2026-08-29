@@ -12,8 +12,6 @@ from utils.db_helpers import (
     insert_social_post,
     get_next_approved_post,
     set_post_scheduled,
-    get_due_scheduled_posts,
-    mark_post_as_published,
     get_latest_scheduled_time,
     count_pending_posts,
     get_blog_articles_by_status,
@@ -21,9 +19,8 @@ from utils.db_helpers import (
     is_scheduling_slot_taken
 )
 from src.integrations.wordpress import get_latest_posts
-from src.integrations.mastodon import post_to_mastodon
-from src.integrations.facebook import post_to_facebook
 from src.ai.generator import generate_social_posts
+from social.publishing import process_publishing
 from config.settings import TELEGRAM_BOT_TOKEN, TELEGRAM_CHANNEL_ID
 
 
@@ -139,20 +136,10 @@ def process_scheduling(platform: str = "mastodon"):
         logger.info(f"No APPROVED posts waiting for scheduling on platform: {platform}.")
         return
 
-    now = datetime.now()
-    
-    # Check if there are already scheduled posts for this platform
-    latest_slot_str = get_latest_scheduled_time(platform)
-    
-    if latest_slot_str:
-        try:
-            latest_slot = datetime.strptime(latest_slot_str, "%Y-%m-%d %H:%M:%S")
-            base_time = max(latest_slot, now)
-            target_slot = base_time + timedelta(days=1)
-        except ValueError:
-            target_slot = (now + timedelta(days=1)).replace(hour=14, minute=0, second=0, microsecond=0)
-    else:
-        target_slot = (now + timedelta(days=1)).replace(hour=14, minute=0, second=0, microsecond=0)
+    target_slot = get_next_available_slot(
+        platform=platform,
+        after=datetime.now(),
+    )
 
     slot_str = target_slot.strftime("%Y-%m-%d %H:%M:%S")
 
@@ -201,45 +188,6 @@ def get_next_available_slot(
             return candidate
 
         candidate = get_next_candidate_slot(candidate)
-        
-
-# ---------------------------------------------------------------------------
-# 3. Publishing Engine
-# ---------------------------------------------------------------------------
-
-def process_publishing():
-    """
-    Check for posts with APPROVED status whose scheduled_at <= NOW.
-    Publish payload to destination platforms and update state to PUBLISHED.
-    """
-    logger.info("Phase 3: Checking due scheduled posts for immediate publishing...")
-    due_posts = get_due_scheduled_posts()
-
-    if not due_posts:
-        logger.info("No posts due for publication at this time.")
-        return
-
-    for post in due_posts:
-        post_id = post["id"]
-        platform = post["platform"]
-        content = post["content"]
-
-        logger.info(f"Dispatching publication for Post #{post_id} to platform '{platform}'...")
-
-        success = False
-        if platform == "mastodon":
-            success = post_to_mastodon(status_text=content)
-        elif platform == "facebook":
-            success = post_to_facebook(text=content)
-        else:
-            logger.warning(f"Platform '{platform}' publishing adapter not implemented.")
-            continue
-
-        if success:
-            mark_post_as_published(post_id)
-            logger.info(f"Post #{post_id} published and marked as PUBLISHED successfully on {platform}.")
-        else:
-            logger.error(f"Failed to publish Post #{post_id} on {platform}.")
 
 
 # ---------------------------------------------------------------------------
