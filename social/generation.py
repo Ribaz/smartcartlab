@@ -1,6 +1,7 @@
 import logging
 
 from src.ai.generator import generate_social_posts
+from src.integrations.telegram import send_telegram_notification
 from utils.db_helpers import (
     get_blog_articles_by_status,
     get_variations_count,
@@ -27,6 +28,8 @@ def process_new_articles(platforms: list[str]):
         logger.info("Processing NEW article: %s", article["title"])
 
         try:
+            created_posts = 0
+
             for platform in platforms:
                 existing_count = get_variations_count(article_id, platform)
 
@@ -59,9 +62,16 @@ def process_new_articles(platforms: list[str]):
                         variation_number=post_data["variation_number"],
                         media_url=article.get("media_url"),
                     )
+                    created_posts += 1
 
             update_blog_article_status(article_id, "GENERATED")
             logger.info("Article %s marked as GENERATED.", article_id)
+            send_telegram_notification(
+                "📢 *Nuovi contenuti social disponibili*\n"
+                f"Generati *{created_posts} post* per:\n"
+                f"*{article['title']}*\n\n"
+                "Sono pronti per la revisione nella dashboard."
+            )
 
         except Exception:
             update_blog_article_status(article_id, "FAILED")

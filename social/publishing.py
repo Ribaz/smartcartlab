@@ -2,6 +2,7 @@ import logging
 
 from src.integrations.facebook import post_to_facebook
 from src.integrations.mastodon import post_to_mastodon
+from src.integrations.telegram import send_telegram_notification
 from utils.db_helpers import (
     get_due_scheduled_posts,
     mark_post_as_published,
@@ -50,10 +51,17 @@ def process_publishing() -> None:
 
         if success:
             mark_post_as_published(post_id)
+            
             logger.info(
                 "Post #%s published successfully on %s.",
                 post_id,
                 platform,
+            )
+
+            send_telegram_notification(
+                "✅ *Post pubblicato*\n"
+                f"Piattaforma: *{platform}*\n\n"
+                f"{content}"
             )
         else:
             logger.error(
