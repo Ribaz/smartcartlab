@@ -4,12 +4,12 @@
 # To swap a component, change the import below — nothing else needs to change.
 
 # To swap the data source, change only this line:
-from fetcher.fake_fetcher import FakeFetcher as Fetcher
+from core.fetcher.fake_fetcher import FakeFetcher as Fetcher
 
 # To swap the scoring algorithm, change only this line:
-from scorer.pillar_scorer import PillarScorer as Scorer
-from publisher.telegram_publisher import TelegramPublisher
-from publisher.wordpress_publisher import WordPressPublisher
+from core.scorer.pillar_scorer import PillarScorer as Scorer
+from core.publisher.telegram_publisher import TelegramPublisher
+from core.publisher.wordpress_publisher import WordPressPublisher
 from utils.db_helpers import initialize_db, save_products
 
 from datetime import datetime

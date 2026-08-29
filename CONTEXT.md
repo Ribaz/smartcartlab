@@ -41,7 +41,7 @@ The philosophy: quality over quantity. One deal per day — or none if nothing i
 
 1. **Alias import pattern**: each component is imported with `as` alias in `main.py`.
    To swap a component, change one word — nothing else. Example:
-   `from fetcher.fake_fetcher import FakeFetcher as Fetcher`
+   `from core.fetcher.fake_fetcher import FakeFetcher as Fetcher`
 2. **English only**: all code, variable names, function names, comments in English.
    Italian only in generated output text (posts, reports).
 3. **Single orchestrator**: `main.py` is the only entry point.
@@ -137,13 +137,13 @@ Weights defined as `WEIGHTS` dict in `scorer/pillar_scorer.py`.
 # main.py — change only the import line
 
 # Development (no API needed):
-from fetcher.fake_fetcher import FakeFetcher as Fetcher
+from core.fetcher.fake_fetcher import FakeFetcher as Fetcher
 
 # Production (Keepa API):
-from fetcher.keepa_fetcher import KeepaFetcher as Fetcher
+from core.fetcher.keepa_fetcher import KeepaFetcher as Fetcher
 
 # Same pattern for scorer:
-from scorer.pillar_scorer import PillarScorer as Scorer
+from core.scorer.pillar_scorer import PillarScorer as Scorer
 ```
 
 ---

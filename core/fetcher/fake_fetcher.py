@@ -1,10 +1,10 @@
-# fetcher/fake_fetcher.py
+# core/fetcher/fake_fetcher.py
 # Fake data fetcher for development and testing purposes.
 # Generates realistic but completely fictional product data.
 # No API keys or internet connection required.
 #
 # To use instead of KeepaFetcher, change one line in main.py:
-#   from fetcher.fake_fetcher import FakeFetcher as Fetcher
+#   from core.fetcher.fake_fetcher import FakeFetcher as Fetcher
  
 import random
 from typing import List, Dict

@@ -42,7 +42,7 @@ one post per day, only when there is something genuinely worth buying.
 
 To run with fake data (no API keys needed), change one line in `main.py`:
 ```python
-from fetcher.fake_fetcher import FakeFetcher as Fetcher
+from core.fetcher.fake_fetcher import FakeFetcher as Fetcher
 ```
 
 ## Follow the project
