@@ -18,12 +18,22 @@ from utils.db_helpers import (
     count_pending_posts,
     get_blog_articles_by_status,
     update_blog_article_status,
+    is_scheduling_slot_taken
 )
 from src.integrations.wordpress import get_latest_posts
 from src.integrations.mastodon import post_to_mastodon
 from src.integrations.facebook import post_to_facebook
 from src.ai.generator import generate_social_posts
 from config.settings import TELEGRAM_BOT_TOKEN, TELEGRAM_CHANNEL_ID
+
+
+WEEKLY_SLOTS = {
+    0: ["08:45", "12:45", "18:15"],  # monday
+    1: ["08:45", "12:45", "18:15"],  # tuesday
+    2: ["08:45", "12:45", "18:15"],  # wednesday
+    3: ["08:45", "12:45", "18:15"],  # thursday
+    4: ["08:45", "12:45"],           # friday
+}
 
 
 logging.basicConfig(
@@ -149,6 +159,49 @@ def process_scheduling(platform: str = "mastodon"):
     set_post_scheduled(approved_post["id"], slot_str)
     logger.info(f"[{platform}] Post #{approved_post['id']} successfully scheduled for {slot_str}.")
 
+
+def get_next_candidate_slot(after: datetime) -> datetime:
+    """Return the first configured publication slot after the supplied datetime."""
+    current_day = after.date()
+
+    while True:
+        weekday = current_day.weekday()
+        day_slots = WEEKLY_SLOTS.get(weekday, [])
+
+        for slot_time in day_slots:
+            hour, minute = map(int, slot_time.split(":"))
+
+            candidate = datetime.combine(
+                current_day,
+                datetime.min.time(),
+            ).replace(
+                hour=hour,
+                minute=minute,
+                second=0,
+                microsecond=0,
+            )
+
+            if candidate > after:
+                return candidate
+
+        current_day += timedelta(days=1)
+
+
+def get_next_available_slot(
+    platform: str,
+    after: datetime,
+) -> datetime:
+    """Return the first configured slot not already used by the platform."""
+    candidate = get_next_candidate_slot(after)
+
+    while True:
+        candidate_str = candidate.strftime("%Y-%m-%d %H:%M:%S")
+
+        if not is_scheduling_slot_taken(platform, candidate_str):
+            return candidate
+
+        candidate = get_next_candidate_slot(candidate)
+        
 
 # ---------------------------------------------------------------------------
 # 3. Publishing Engine

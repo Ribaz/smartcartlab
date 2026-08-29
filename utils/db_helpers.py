@@ -452,6 +452,27 @@ def update_post_schedule_date(post_id: int, scheduled_at: str):
         )
 
 
+def is_scheduling_slot_taken(
+    platform: str,
+    scheduled_at: str,
+) -> bool:
+    """Return True when the platform already has a post in the supplied slot."""
+    with get_social_connection() as conn:
+        row = conn.execute(
+            """
+            SELECT 1
+            FROM social_posts
+            WHERE platform = ?
+              AND status = 'APPROVED'
+              AND scheduled_at = ?
+            LIMIT 1
+            """,
+            (platform, scheduled_at),
+        ).fetchone()
+
+    return row is not None
+    
+
 # ---------------------------------------------------------------------------
 # Social Manager DB - Dashboard read models
 # ---------------------------------------------------------------------------
