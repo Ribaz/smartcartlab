@@ -16,6 +16,8 @@ from utils.db_helpers import (
     mark_post_as_published,
     get_latest_scheduled_time,
     count_pending_posts,
+    get_blog_articles_by_status,
+    update_blog_article_status,
 )
 from src.integrations.wordpress import get_latest_posts
 from src.integrations.mastodon import post_to_mastodon
@@ -35,65 +37,81 @@ logger = logging.getLogger(__name__)
 # 1. Ingestion & Multi-Angle Post Generation
 # ---------------------------------------------------------------------------
 
-def process_blog_ingestion(platform: str = "mastodon"):
-    """
-    Fetch the latest articles from WordPress RSS feed.
-    If an article is newly registered or has < 3 posts generated,
-    produce distinct variations using Gemma and store them as PENDING drafts.
-    """
-    logger.info(f"Phase 1 [{platform}]: Checking WordPress RSS feed for new articles...")
+def process_wordpress_ingestion():
+    """Fetch WordPress once and save newly discovered articles."""
+    logger.info("Phase 1: Checking WordPress for new articles...")
+
     articles = get_latest_posts(limit=3, lang="it")
+
     if not articles:
-        logger.info("No articles returned from RSS feed.")
+        logger.info("No articles returned from WordPress.")
         return
 
+    new_articles = 0
+
     for article in articles:
+        if save_blog_article(article):
+            new_articles += 1
+            logger.info("Saved new article: %s", article["title"])
+
+    logger.info("WordPress ingestion completed: %d new articles.", new_articles)
+
+
+def process_new_articles(platforms: list[str]):
+    """Generate all platform variations for articles marked as NEW."""
+    articles = get_blog_articles_by_status("NEW")
+
+    if not articles:
+        logger.info("No NEW articles waiting for content generation.")
+        return
+
+    for article_row in articles:
+        article = dict(article_row)
         article_id = article["id"]
-        is_new = save_blog_article(article)
-        existing_count = get_variations_count(article_id, platform)
-        
-        if existing_count == 3:
-            logger.info(
-                "[%s] Article '%s' already processed.",
-                platform,
-                article["title"],
-            )
-            continue
 
-        if existing_count != 0:
-            logger.warning(
-                "[%s] Article '%s' has %d generated posts. "
-                "Expected exactly 3. Skipping automatic generation.",
-                platform,
-                article["title"],
-                existing_count,
-            )
-            continue
+        logger.info("Processing NEW article: %s", article["title"])
 
-        logger.info(f"[{platform}] Generating 3 social post variations for article: {article['title']}")
-        generated_posts = generate_social_posts(
-            article_title=article["title"],
-            article_content=article["content"],
-            article_link=article["link"],
-            platform=platform,
-            language=article.get("lang", "it"),
-        )
+        try:
+            for platform in platforms:
+                existing_count = get_variations_count(article_id, platform)
 
-        for post_data in generated_posts:
-            var_num = post_data["variation_number"]
-            content = post_data["content"]
-            media_url = article.get("media_url")
+                if existing_count == 3:
+                    logger.info(
+                        "[%s] Article already has 3 variations.",
+                        platform,
+                    )
+                    continue
 
-            # Store draft post with PENDING status for local dashboard review
-            insert_social_post(
-                article_id=article_id,
-                platform=platform,
-                content=content,
-                variation_number=var_num,
-                media_url=media_url
-            )
-            logger.info(f"[{platform}] Created PENDING post variation #{var_num} for article ID {article_id}.")
+                if existing_count != 0:
+                    raise RuntimeError(
+                        f"Article {article_id} has {existing_count} "
+                        f"variations for {platform}; expected 0 or 3."
+                    )
 
+                generated_posts = generate_social_posts(
+                    article_title=article["title"],
+                    article_content=article["content"],
+                    article_link=article["link"],
+                    platform=platform,
+                    language=article.get("lang") or "it",
+                )
+
+                for post_data in generated_posts:
+                    insert_social_post(
+                        article_id=article_id,
+                        platform=platform,
+                        content=post_data["content"],
+                        variation_number=post_data["variation_number"],
+                        media_url=article.get("media_url"),
+                    )
+
+            update_blog_article_status(article_id, "GENERATED")
+            logger.info("Article %s marked as GENERATED.", article_id)
+
+        except Exception:
+            update_blog_article_status(article_id, "FAILED")
+            logger.exception("Generation failed for article %s.", article_id)
+            
 
 # ---------------------------------------------------------------------------
 # 2. Scheduling Logic (Next Slot Assignment)
@@ -217,17 +235,13 @@ def main():
 
     platforms = ["mastodon", "facebook"]
 
-    for platform in platforms:
-        # 1. Fetch RSS feed and generate variations with Gemma for each platform
-        process_blog_ingestion(platform=platform)
+    process_wordpress_ingestion()
+    process_new_articles(platforms)
 
-        # 2. Schedule user-approved posts into future slots for each platform
+    for platform in platforms:
         process_scheduling(platform=platform)
 
-    # 3. Dispatch posts whose scheduled time has arrived across all platforms
     process_publishing()
-
-    # 4. Send one-shot Telegram notification if pending posts are waiting
     check_and_notify_pending()
 
     logger.info("=== SOCIAL BATCH PIPELINE COMPLETED ===")
