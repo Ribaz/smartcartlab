@@ -101,14 +101,16 @@ def initialize_social_db():
         conn.execute(
             """
             CREATE TABLE IF NOT EXISTS blog_articles (
-                id         TEXT PRIMARY KEY,
-                slug       TEXT,
-                title      TEXT NOT NULL,
-                link       TEXT NOT NULL,
-                pub_date   TEXT,
-                media_url  TEXT,
+                id                TEXT PRIMARY KEY,
+                slug              TEXT,
+                title             TEXT NOT NULL,
+                content           TEXT NOT NULL,
+                link              TEXT NOT NULL,
+                pub_date          TEXT,
+                media_url         TEXT,
+                lang              TEXT NOT NULL DEFAULT 'it',
                 processing_status TEXT NOT NULL DEFAULT 'NEW',
-                created_at TEXT DEFAULT (datetime('now'))
+                created_at        TEXT DEFAULT (datetime('now'))
             )
             """
         )
@@ -159,16 +161,27 @@ def save_blog_article(article: Dict) -> bool:
 
         conn.execute(
             """
-            INSERT INTO blog_articles (id, slug, title, link, pub_date, media_url)
-            VALUES (?, ?, ?, ?, ?, ?)
+            INSERT INTO blog_articles (
+                id,
+                slug,
+                title,
+                content,
+                link,
+                pub_date,
+                media_url,
+                lang
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 article["id"],
                 article.get("slug", ""),
                 article["title"],
+                article["content"],
                 article["link"],
                 article.get("date_gmt", ""),
                 article.get("media_url"),
+                article.get("lang", "it"),
             ),
         )
     return True
@@ -211,7 +224,7 @@ def update_blog_article_status(article_id: str, status: str) -> None:
             """,
             (status, article_id),
         )
-        
+
 
 def get_variations_count(article_id: str, platform: str) -> int:
     """Count variations that already exist for an article/platform pair."""
