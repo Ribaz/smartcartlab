@@ -13,7 +13,7 @@ from fastapi import FastAPI, Form, Query, Request
 from fastapi.responses import RedirectResponse
 from fastapi.templating import Jinja2Templates
 
-from src.ai.generator import rewrite_social_post
+from social.copywriter import rewrite_social_post
 from integrations.facebook import post_to_facebook
 from integrations.mastodon import post_to_mastodon
 from utils.db_helpers import (
