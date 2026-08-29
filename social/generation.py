@@ -1,7 +1,7 @@
 import logging
 
 from src.ai.generator import generate_social_posts
-from src.integrations.telegram import send_telegram_notification
+from integrations.telegram import send_telegram_notification
 from utils.db_helpers import (
     get_blog_articles_by_status,
     get_variations_count,

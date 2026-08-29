@@ -1,6 +1,6 @@
 import logging
 
-from src.integrations.wordpress import get_latest_posts
+from integrations.wordpress import get_latest_posts
 from utils.db_helpers import save_blog_article
 
 

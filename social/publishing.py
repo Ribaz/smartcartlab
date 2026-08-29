@@ -1,8 +1,8 @@
 import logging
 
-from src.integrations.facebook import post_to_facebook
-from src.integrations.mastodon import post_to_mastodon
-from src.integrations.telegram import send_telegram_notification
+from integrations.facebook import post_to_facebook
+from integrations.mastodon import post_to_mastodon
+from integrations.telegram import send_telegram_notification
 from utils.db_helpers import (
     get_due_scheduled_posts,
     mark_post_as_published,

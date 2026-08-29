@@ -14,8 +14,8 @@ from fastapi.responses import RedirectResponse
 from fastapi.templating import Jinja2Templates
 
 from src.ai.generator import rewrite_social_post
-from src.integrations.facebook import post_to_facebook
-from src.integrations.mastodon import post_to_mastodon
+from integrations.facebook import post_to_facebook
+from integrations.mastodon import post_to_mastodon
 from utils.db_helpers import (
     get_all_posts_with_articles,
     get_pending_posts_with_articles,
