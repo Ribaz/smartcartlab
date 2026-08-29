@@ -2,7 +2,7 @@
 # Periodic batch pipeline: RSS ingestion, AI generation, scheduling, publishing, and one-shot notification.
 
 import logging
-from utils.db_helpers import initialize_social_db
+from database.db_helpers import initialize_social_db
 
 from social.ingestion import process_wordpress_ingestion
 from social.generation import process_new_articles

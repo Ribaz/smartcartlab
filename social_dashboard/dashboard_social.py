@@ -16,7 +16,7 @@ from fastapi.templating import Jinja2Templates
 from social.copywriter import rewrite_social_post
 from integrations.facebook import post_to_facebook
 from integrations.mastodon import post_to_mastodon
-from utils.db_helpers import (
+from database.db_helpers import (
     get_all_posts_with_articles,
     get_pending_posts_with_articles,
     get_social_post_by_id,

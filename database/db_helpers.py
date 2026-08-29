@@ -305,24 +305,6 @@ def update_social_post_status(
         )
 
 
-def update_post_status(post_id: int, status: str):
-    """Backward-compatible alias used by older code paths."""
-    update_social_post_status(post_id, status)
-
-
-def update_post_telegram_id(post_id: int, message_id: int):
-    """Associate a Telegram message ID with a social post."""
-    with get_social_connection() as conn:
-        conn.execute(
-            """
-            UPDATE social_posts
-            SET telegram_message_id = ?, updated_at = datetime('now')
-            WHERE id = ?
-            """,
-            (message_id, post_id),
-        )
-
-
 def get_social_post_by_id(post_id: int) -> Optional[sqlite3.Row]:
     """Fetch a single social post by primary ID."""
     with get_social_connection() as conn:
@@ -401,32 +383,6 @@ def mark_post_as_published(post_id: int):
             """,
             (post_id,),
         )
-
-
-def get_latest_scheduled_time(platform: str) -> Optional[str]:
-    """Return the latest future/active schedule for the supplied platform."""
-    with get_social_connection() as conn:
-        row = conn.execute(
-            """
-            SELECT MAX(scheduled_at) AS latest
-            FROM social_posts
-            WHERE platform = ?
-              AND status = 'APPROVED'
-              AND scheduled_at IS NOT NULL
-              AND scheduled_at != ''
-            """,
-            (platform,),
-        ).fetchone()
-    return row["latest"] if row and row["latest"] else None
-
-
-def count_pending_posts() -> int:
-    """Return the number of posts awaiting human review."""
-    with get_social_connection() as conn:
-        row = conn.execute(
-            "SELECT COUNT(*) AS total FROM social_posts WHERE status = 'PENDING'"
-        ).fetchone()
-    return int(row["total"] if row else 0)
 
 
 def update_post_schedule_date(post_id: int, scheduled_at: str):
@@ -520,18 +476,3 @@ def get_pending_posts() -> List[sqlite3.Row]:
             "SELECT * FROM social_posts WHERE status = 'PENDING' ORDER BY created_at DESC"
         ).fetchall()
 
-
-def get_scheduled_posts() -> List[sqlite3.Row]:
-    with get_social_connection() as conn:
-        return conn.execute(
-            """
-            SELECT *
-            FROM social_posts
-            WHERE status = 'APPROVED'
-            ORDER BY scheduled_at IS NULL, scheduled_at ASC
-            """
-        ).fetchall()
-
-
-def get_approved_and_scheduled_posts() -> List[sqlite3.Row]:
-    return get_scheduled_posts()

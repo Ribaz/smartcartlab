@@ -1,7 +1,7 @@
 import logging
 from datetime import datetime, timedelta
 
-from utils.db_helpers import (
+from database.db_helpers import (
     get_next_approved_post,
     is_scheduling_slot_taken,
     set_post_scheduled,
