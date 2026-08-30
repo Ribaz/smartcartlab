@@ -48,7 +48,6 @@ UTC = timezone.utc
 
 
 def _parse_db_datetime(value: str | None) -> datetime | None:
-    """Parse timestamps stored by SQLite and HTML datetime-local fields."""
     if not value:
         return None
 
@@ -214,6 +213,11 @@ def _build_timeline(
             article["outside_window"].append(post)
 
     for article in articles.values():
+        article["is_inactive"] = (
+            article["counts"]["PENDING"] == 0
+            and article["counts"]["APPROVED"] == 0
+        )
+
         for posts in article["posts_by_day"].values():
             posts.sort(
                 key=lambda post: (

@@ -133,6 +133,10 @@
             border-left: 6px solid var(--article-color);
         }
 
+        .timeline-grid.is-inactive .timeline-article {
+            opacity: .5;
+        }
+
         .timeline-cell {
             min-height: 150px;
             padding: .45rem;
@@ -387,7 +391,7 @@
                     </div>
 
                     {% for article in article_groups %}
-                        <div class="timeline-grid article-color-{{ article.color_index }}" style="grid-template-columns: 300px repeat({{ timeline_days|length }}, var(--timeline-day-width));">
+                        <div class="timeline-grid article-color-{{ article.color_index }}{% if article.is_inactive %} is-inactive{% endif %}" style="grid-template-columns: 300px repeat({{ timeline_days|length }}, var(--timeline-day-width));">
                             <div class="timeline-article">
                                 <div class="d-flex gap-3">
                                     {% if article.media_url %}
