@@ -7,9 +7,8 @@
 #   from core.fetcher.fake_fetcher import FakeFetcher as Fetcher
  
 import random
-from typing import List, Dict
- 
- 
+from typing import Dict, List
+
 # --- Data pools for combinatorial generation ---
  
 BRANDS = [

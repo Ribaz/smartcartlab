@@ -1,10 +1,12 @@
 # publisher/wordpress_publisher.py
 # Creates the daily report article on WordPress via REST API.
 
+from typing import Dict
+
 import requests
 from requests.auth import HTTPBasicAuth
-from config.settings import WORDPRESS_URL, WORDPRESS_USER, WORDPRESS_APP_PASSWORD
-from typing import Dict
+
+from config.settings import WORDPRESS_APP_PASSWORD, WORDPRESS_URL, WORDPRESS_USER
 
 
 class WordPressPublisher:

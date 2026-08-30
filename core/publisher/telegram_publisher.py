@@ -15,7 +15,6 @@ from config.settings import (
 )
 from integrations.telegram import send_telegram_message
 
-
 logger = logging.getLogger(__name__)
 
 

@@ -7,10 +7,11 @@
 # 3. For each ASIN returned, query full product details (price history, reviews)
 # 4. Normalize into the standard product dict format for the scorer
 
-import keepa
-from config.settings import KEEPA_API_KEY
-from typing import List, Dict
+from typing import Dict, List
 
+import keepa
+
+from config.settings import KEEPA_API_KEY
 
 # Target categories to scan — names used to search Keepa dynamically
 TARGET_CATEGORIES = [

@@ -6,9 +6,9 @@
 # To swap the algorithm, create a new scorer class with score() and pick_best()
 # and change only the import line in main.py.
 
-from config.settings import MIN_REVIEW_SCORE, MIN_REVIEW_COUNT
-from typing import List, Dict
+from typing import Dict, List
 
+from config.settings import MIN_REVIEW_COUNT, MIN_REVIEW_SCORE
 
 # Pillar weights — must sum to 1.0
 WEIGHTS = {
