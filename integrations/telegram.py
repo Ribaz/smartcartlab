@@ -1,50 +1,73 @@
-# src/integrations/telegram.py
-# Telegram integration for simple notifications and alerts.
+# integrations/telegram.py
+# Shared Telegram delivery integration.
+
+from __future__ import annotations
 
 import logging
+
 import requests
-from typing import Optional
-from config.settings import TELEGRAM_BOT_TOKEN, TELEGRAM_ADMIN_CHAT_ID
+
+from config.settings import TELEGRAM_BOT_TOKEN
+
 
 logger = logging.getLogger(__name__)
 
-BASE_URL = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}" if TELEGRAM_BOT_TOKEN else ""
+TELEGRAM_API_BASE_URL = (
+    f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}"
+    if TELEGRAM_BOT_TOKEN
+    else ""
+)
 
 
-# ---------------------------------------------------------------------------
-# Notification Delivery
-# ---------------------------------------------------------------------------
-
-def send_telegram_notification(message: str) -> bool:
-    """
-    Send a plain text or markdown notification message to the configured admin chat.
-    Returns True on success, or False on failure.
-    """
-    if not TELEGRAM_BOT_TOKEN or not TELEGRAM_ADMIN_CHAT_ID:
-        logger.warning("Telegram credentials (token or admin chat ID) not configured. Skipping notification.")
+def send_telegram_message(
+    message: str,
+    chat_id: str | int,
+    *,
+    parse_mode: str | None = None,
+    disable_web_page_preview: bool = True,
+    timeout: int = 15,
+) -> bool:
+    """Send a message to a Telegram chat or channel."""
+    if not TELEGRAM_BOT_TOKEN:
+        logger.warning(
+            "Telegram bot token not configured. Skipping message delivery."
+        )
         return False
 
-    url = f"{BASE_URL}/sendMessage"
-    
-    payload = {
-        "chat_id": TELEGRAM_ADMIN_CHAT_ID,
+    if not chat_id:
+        logger.warning(
+            "Telegram destination not configured. Skipping message delivery."
+        )
+        return False
+
+    payload: dict[str, object] = {
+        "chat_id": chat_id,
         "text": message,
-        "parse_mode": "Markdown",
-        "disable_web_page_preview": True
+        "disable_web_page_preview": disable_web_page_preview,
     }
 
+    if parse_mode:
+        payload["parse_mode"] = parse_mode
+
     try:
-        response = requests.post(url, json=payload, timeout=15)
+        response = requests.post(
+            f"{TELEGRAM_API_BASE_URL}/sendMessage",
+            json=payload,
+            timeout=timeout,
+        )
         response.raise_for_status()
-        res_data = response.json()
-        
-        if res_data.get("ok"):
-            logger.info("Telegram notification sent successfully.")
+
+        response_data = response.json()
+        if response_data.get("ok"):
+            logger.info("Telegram message sent successfully.")
             return True
-            
-        logger.error(f"Telegram API returned an error: {res_data}")
+
+        logger.error(
+            "Telegram API returned an error: %s",
+            response_data,
+        )
         return False
 
-    except Exception as e:
-        logger.error(f"Failed to send Telegram notification: {e}")
+    except requests.RequestException:
+        logger.exception("Unable to send Telegram message.")
         return False

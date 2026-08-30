@@ -1,9 +1,10 @@
 import logging
 
 from social.copywriter import generate_social_posts
-from integrations.telegram import send_telegram_notification
 from database.articles import get_blog_articles_by_status, update_blog_article_status
 from database.posts import get_variations_count, insert_social_post
+from integrations.telegram import send_telegram_message
+from config.settings import TELEGRAM_ADMIN_CHAT_ID
 
 
 logger = logging.getLogger(__name__)
@@ -62,11 +63,13 @@ def process_new_articles(platforms: list[str]):
 
             update_blog_article_status(article_id, "GENERATED")
             logger.info("Article %s marked as GENERATED.", article_id)
-            send_telegram_notification(
+            send_telegram_message(
                 "📢 *Nuovi contenuti social disponibili*\n"
                 f"Generati *{created_posts} post* per:\n"
                 f"*{article['title']}*\n\n"
-                "Sono pronti per la revisione nella dashboard."
+                "Sono pronti per la revisione nella dashboard.",
+                TELEGRAM_ADMIN_CHAT_ID,
+                "Markdown"
             )
 
         except Exception:
