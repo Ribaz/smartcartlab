@@ -113,7 +113,11 @@ def _resolve_window(start: str | None, end: str | None, today: date) -> tuple[da
 
     try:
         window_start = date.fromisoformat(start) if start else default_start
-        window_end = date.fromisoformat(end) if end else window_start + timedelta(days=TIMELINE_DAYS - 1)
+        window_end = (
+            date.fromisoformat(end)
+            if end
+            else window_start + timedelta(days=TIMELINE_DAYS - 1)
+        )
     except ValueError:
         return default_start, default_end, True
 

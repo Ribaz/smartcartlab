@@ -146,16 +146,32 @@ class KeepaFetcher:
         rating_raw = data.get("RATING", [None])[-1]
         review_count_raw = data.get("COUNT_REVIEWS", [None])[-1]
 
+        category_tree = raw.get("categoryTree") or []
+        category = category_tree[-1].get("name") if category_tree else None
+
+        review_count = (
+            review_count_raw
+            if review_count_raw and review_count_raw > 0
+            else None
+        )
+
+        image_url = None
+        if raw.get("imagesCSV"):
+            first_image = raw["imagesCSV"].split(",")[0]
+            image_url = (
+                f"https://images-na.ssl-images-amazon.com/images/I/{first_image}"
+            )
+
         return {
             "asin":          raw.get("asin"),
             "title":         raw.get("title"),
-            "category":      raw.get("categoryTree", [{}])[-1].get("name") if raw.get("categoryTree") else None,
+            "category":      category,
             "current_price": to_eur(current_raw),
             "avg_price_90d": avg_price(history_90d),
             "avg_price_1y":  avg_price(history_1y),
             "review_score":  round(rating_raw / 10, 1) if rating_raw else None,
-            "review_count":  review_count_raw if review_count_raw and review_count_raw > 0 else None,
-            "image_url":     f"https://images-na.ssl-images-amazon.com/images/I/{raw['imagesCSV'].split(',')[0]}" if raw.get("imagesCSV") else None,
+            "review_count":  review_count,
+            "image_url":     image_url,
             "product_link":  f"https://www.amazon.it/dp/{raw.get('asin')}",
             "final_score":   None,  # filled by scorer
         }
