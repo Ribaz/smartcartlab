@@ -4,16 +4,16 @@
 # To swap a component, change the import below — nothing else needs to change.
 
 # To swap the data source, change only this line:
+from datetime import datetime
+
 from core.fetcher.fake_fetcher import FakeFetcher as Fetcher
+from core.publisher.telegram_publisher import TelegramPublisher
 
 # To swap the scoring algorithm, change only this line:
 from core.scorer.pillar_scorer import PillarScorer as Scorer
-from core.publisher.telegram_publisher import TelegramPublisher
-from core.publisher.wordpress_publisher import WordPressPublisher
-from database.schema_core import initialize_db
 from database.products import save_products
+from database.schema_core import initialize_db
 
-from datetime import datetime
 
 # --- Color helpers (ANSI codes, no external libraries) ---
 def log_info(msg):    print(f"\033[97m{msg}\033[0m")   #white
