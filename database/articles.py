@@ -5,7 +5,6 @@ from typing import Dict, List, Optional
 
 from database.connections import get_social_connection
 
-
 VALID_ARTICLE_STATUSES = {"NEW", "GENERATED", "FAILED"}
 
 

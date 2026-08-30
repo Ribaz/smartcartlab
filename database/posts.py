@@ -8,7 +8,6 @@ from zoneinfo import ZoneInfo
 from config.settings import APP_TIMEZONE
 from database.connections import get_social_connection
 
-
 VALID_SOCIAL_STATUSES = {"PENDING", "APPROVED", "PUBLISHED", "REJECTED"}
 LOCAL_TIMEZONE = ZoneInfo(APP_TIMEZONE)
 UTC = timezone.utc

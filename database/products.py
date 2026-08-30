@@ -3,9 +3,6 @@ from typing import Dict, List
 from database.connections import get_connection
 
 
-
-
-
 def save_products(products: List[Dict]):
     """Insert scored products into the products table."""
     with get_connection() as conn:
