@@ -1,15 +1,13 @@
 import logging
 
-from integrations.facebook import post_to_facebook
-from integrations.mastodon import post_to_mastodon
-from integrations.telegram import send_telegram_message
 from config.settings import TELEGRAM_ADMIN_CHAT_ID
 from database.posts import (
     get_due_scheduled_posts,
     mark_post_as_published,
 )
-
-
+from integrations.facebook import post_to_facebook
+from integrations.mastodon import post_to_mastodon
+from integrations.telegram import send_telegram_message
 
 logger = logging.getLogger(__name__)
 

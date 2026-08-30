@@ -1,8 +1,7 @@
 import logging
 
-from integrations.wordpress import get_latest_posts
 from database.articles import save_blog_article
-
+from integrations.wordpress import get_latest_posts
 
 logger = logging.getLogger(__name__)
 

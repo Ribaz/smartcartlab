@@ -1,11 +1,10 @@
 import logging
 
-from social.copywriter import generate_social_posts
+from config.settings import TELEGRAM_ADMIN_CHAT_ID
 from database.articles import get_blog_articles_by_status, update_blog_article_status
 from database.posts import get_variations_count, insert_social_post
 from integrations.telegram import send_telegram_message
-from config.settings import TELEGRAM_ADMIN_CHAT_ID
-
+from social.copywriter import generate_social_posts
 
 logger = logging.getLogger(__name__)
 

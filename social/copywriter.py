@@ -4,9 +4,11 @@
 import json
 import logging
 import re
-import requests
 from typing import Dict, List, Optional
-from config.settings import OLLAMA_URL, OLLAMA_MODEL
+
+import requests
+
+from config.settings import OLLAMA_MODEL, OLLAMA_URL
 
 logger = logging.getLogger(__name__)
 
