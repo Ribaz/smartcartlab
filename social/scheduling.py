@@ -9,7 +9,6 @@ from database.posts import (
     set_post_scheduled,
 )
 
-
 logger = logging.getLogger(__name__)
 
 
