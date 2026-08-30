@@ -15,13 +15,16 @@ from fastapi import FastAPI, Form, Query, Request
 from fastapi.responses import RedirectResponse
 from fastapi.templating import Jinja2Templates
 
-from social.copywriter import rewrite_social_post
+from social.copywriter import generate_custom_social_post, rewrite_social_post
 from integrations.facebook import post_to_facebook
 from integrations.mastodon import post_to_mastodon
+from database.articles import get_blog_article_by_id
 from database.posts import (
     get_all_posts_with_articles,
+    get_next_variation_number,
     get_pending_posts_with_articles,
     get_social_post_by_id,
+    insert_social_post,
     mark_post_as_published,
     update_post_schedule_date,
     update_social_post_status,
@@ -247,6 +250,8 @@ def render_dashboard(
     request: Request,
     start: str | None = Query(default=None),
     end: str | None = Query(default=None),
+    post_created: bool = Query(default=False),
+    post_error: str | None = Query(default=None),
 ):
     today = datetime.now(LOCAL_TIMEZONE).date()
     window_start, window_end, is_default_window = _resolve_window(start, end, today)
@@ -309,6 +314,8 @@ def render_dashboard(
             "platforms": platforms,
             "articles": articles,
             "is_default_window": is_default_window,
+            "post_created": post_created,
+            "post_error": post_error,
         },
     )
     response.headers["Cache-Control"] = "no-store, max-age=0"
@@ -318,6 +325,84 @@ def render_dashboard(
 # ---------------------------------------------------------------------------
 # Post action endpoints
 # ---------------------------------------------------------------------------
+
+
+
+@app.post("/posts/create")
+def create_custom_post(
+    article_id: str = Form(...),
+    platform: str = Form(...),
+    prompt: str = Form(""),
+    content: str = Form(""),
+):
+    """Create a PENDING post manually or generate it from a custom Gemma prompt."""
+    article = get_blog_article_by_id(article_id)
+    if not article:
+        logger.warning("Cannot create a post for missing article %s.", article_id)
+        return RedirectResponse(
+            url="/?post_error=article-not-found#timeline",
+            status_code=303,
+        )
+
+    article_data = dict(article)
+    platform = platform.strip().lower()
+    manual_content = content.strip()
+    custom_prompt = prompt.strip()
+
+    if platform not in {"facebook", "mastodon"}:
+        logger.warning("Unsupported platform '%s' for custom post creation.", platform)
+        return RedirectResponse(
+            url="/?post_error=unsupported-platform#timeline",
+            status_code=303,
+        )
+
+    if manual_content:
+        post_content = manual_content
+    elif custom_prompt:
+        post_content = generate_custom_social_post(
+            article_title=article_data["title"],
+            article_content=article_data["content"],
+            article_link=article_data["link"],
+            platform=platform,
+            user_prompt=custom_prompt,
+            language=article_data.get("lang") or "it",
+        )
+        if not post_content:
+            logger.error(
+                "Gemma failed to generate a custom %s post for article %s.",
+                platform,
+                article_id,
+            )
+            return RedirectResponse(
+                url="/?post_error=generation-failed#timeline",
+                status_code=303,
+            )
+    else:
+        logger.warning(
+            "Custom post creation requested without content or prompt for article %s.",
+            article_id,
+        )
+        return RedirectResponse(
+            url="/?post_error=missing-content#timeline",
+            status_code=303,
+        )
+
+    variation_number = get_next_variation_number(article_id, platform)
+    post_id = insert_social_post(
+        article_id=article_id,
+        platform=platform,
+        content=post_content,
+        variation_number=variation_number,
+        media_url=article_data.get("media_url"),
+    )
+
+    logger.info(
+        "Created custom PENDING post #%s for article %s on %s.",
+        post_id,
+        article_id,
+        platform,
+    )
+    return RedirectResponse(url="/?post_created=1#review", status_code=303)
 
 
 @app.post("/posts/{post_id}/approve")

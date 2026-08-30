@@ -347,6 +347,17 @@
 
     <!-- Article-centric timeline -->
     <section class="mb-5" id="timeline">
+        {% if post_created %}
+            <div class="alert alert-success alert-dismissible fade show" role="alert">
+                Nuovo post creato e aggiunto alla coda di approvazione.
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+        {% elif post_error %}
+            <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                Impossibile creare il post. Controlla piattaforma, prompt e contenuto, quindi riprova.
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+        {% endif %}
         <div class="section-heading flex-wrap align-items-end">
             <div>
                 <div class="eyebrow">Article distribution</div>
@@ -400,6 +411,14 @@
                                     <div class="min-w-0">
                                         <a class="article-context fw-semibold d-block" href="{{ article.link }}" target="_blank" rel="noreferrer">{{ article.title }}</a>
                                         <div class="small text-muted mt-1">Article {{ article.id }}{% if article.pub_date %} · {{ article.pub_date[:16]|replace('T', ' ') }}{% endif %}</div>
+                                        <button type="button"
+                                                class="btn btn-outline-primary btn-sm mt-2 create-post-button"
+                                                data-bs-toggle="modal"
+                                                data-bs-target="#createPostModal"
+                                                data-article-id="{{ article.id }}"
+                                                data-article-title="{{ article.title }}">
+                                            + Crea nuovo post
+                                        </button>
                                     </div>
                                 </div>
 
@@ -644,6 +663,66 @@
     </section>
 </div>
 
+
+<!-- Create post modal -->
+<div class="modal fade" id="createPostModal" tabindex="-1" aria-labelledby="createPostModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <form action="/posts/create" method="POST" id="createPostForm">
+                <div class="modal-header">
+                    <div>
+                        <h5 class="modal-title" id="createPostModalLabel">Crea nuovo post</h5>
+                        <div class="small text-muted" id="createPostArticleTitle"></div>
+                    </div>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+
+                <div class="modal-body">
+                    <input type="hidden" name="article_id" id="createPostArticleId">
+
+                    <div class="mb-3">
+                        <label for="createPostPlatform" class="form-label">Piattaforma</label>
+                        <select class="form-select" name="platform" id="createPostPlatform" required>
+                            <option value="facebook">Facebook</option>
+                            <option value="mastodon">Mastodon</option>
+                        </select>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="createPostPrompt" class="form-label">Prompt per Gemma</label>
+                        <textarea class="form-control"
+                                  name="prompt"
+                                  id="createPostPrompt"
+                                  rows="4"
+                                  placeholder="Esempio: crea un nuovo post che riprenda l'articolo da un punto di vista più pratico e personale."></textarea>
+                        <div class="form-text">
+                            Usato solo se il contenuto manuale qui sotto è vuoto.
+                        </div>
+                    </div>
+
+                    <div>
+                        <label for="createPostContent" class="form-label">Contenuto manuale</label>
+                        <textarea class="form-control"
+                                  name="content"
+                                  id="createPostContent"
+                                  rows="7"
+                                  placeholder="Scrivi direttamente il post, oppure lascia vuoto e usa il prompt per Gemma."></textarea>
+                        <div class="d-flex justify-content-between mt-2">
+                            <div class="form-text">Il contenuto manuale ha la precedenza sul prompt.</div>
+                            <small class="text-muted"><span id="createPostCharacterCount">0</span> caratteri</small>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Annulla</button>
+                    <button type="submit" class="btn btn-primary">Crea post pending</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
 <!-- Schedule modal -->
 <div class="modal fade" id="rescheduleModal" tabindex="-1" aria-labelledby="rescheduleModalLabel" aria-hidden="true">
     <div class="modal-dialog">
@@ -668,6 +747,45 @@
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 <script>
+
+    // Populate the custom post modal with the selected article.
+    const createPostModal = document.getElementById('createPostModal');
+    const createPostForm = document.getElementById('createPostForm');
+    const createPostArticleId = document.getElementById('createPostArticleId');
+    const createPostArticleTitle = document.getElementById('createPostArticleTitle');
+    const createPostPrompt = document.getElementById('createPostPrompt');
+    const createPostContent = document.getElementById('createPostContent');
+    const createPostCharacterCount = document.getElementById('createPostCharacterCount');
+
+    createPostModal?.addEventListener('show.bs.modal', event => {
+        const trigger = event.relatedTarget;
+        if (!trigger) return;
+
+        createPostArticleId.value = trigger.getAttribute('data-article-id') || '';
+        createPostArticleTitle.textContent = trigger.getAttribute('data-article-title') || '';
+        createPostPrompt.value = '';
+        createPostContent.value = '';
+        createPostCharacterCount.textContent = '0';
+    });
+
+    createPostContent?.addEventListener('input', () => {
+        createPostCharacterCount.textContent = createPostContent.value.length;
+    });
+
+    createPostForm?.addEventListener('submit', event => {
+        const hasPrompt = createPostPrompt.value.trim().length > 0;
+        const hasContent = createPostContent.value.trim().length > 0;
+
+        if (!hasPrompt && !hasContent) {
+            event.preventDefault();
+            createPostContent.setCustomValidity('Inserisci un contenuto oppure un prompt per Gemma.');
+            createPostContent.reportValidity();
+            return;
+        }
+
+        createPostContent.setCustomValidity('');
+    });
+
 
     // Position the timeline so that yesterday is still hinted at,
     // today sits near the left edge and the upcoming days dominate the viewport.

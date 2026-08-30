@@ -1,4 +1,4 @@
-# src/ai/generator.py
+# social/copywriter.py
 # Social media post generation using Gemma (via Ollama) with multi-platform support and 3 distinct angles.
 
 import json
@@ -104,8 +104,11 @@ Required JSON Structure:
 # Cleaners & Parsers
 # ---------------------------------------------------------------------------
 
-def _strip_html_tags(text: str) -> str:
-    """Remove HTML tags from WordPress content to reduce prompt token footprint."""
+def _strip_html_tags(text: str | None) -> str:
+    """Remove HTML tags, returning an empty string when content is unavailable."""
+    if not text:
+        return ""
+
     clean = re.compile(r"<.*?>")
     return re.sub(clean, "", text).strip()
 
@@ -239,6 +242,69 @@ def generate_social_posts(article_title: str, article_content: str, article_link
         )
         return []
 
+
+
+def generate_custom_social_post(
+    article_title: str,
+    article_content: str,
+    article_link: str,
+    platform: str,
+    user_prompt: str,
+    language: str = "it",
+) -> Optional[str]:
+    """Generate one custom social post from an article and a user instruction."""
+    cleaned_content = _strip_html_tags(article_content)[:2500]
+    platform_rules = _get_platform_instructions(platform)
+    language_rule = _get_language_instruction(language)
+
+    system_prompt = f"""You are the social media copywriter for SmartCartLab.
+Create exactly one social media post for {platform}.
+
+{platform_rules}
+{language_rule}
+
+Follow the user's instruction closely.
+Keep the post consistent with the supplied article.
+Return EXCLUSIVELY the final post text, without markdown fences, labels,
+introductory text, or quotation marks.
+Preserve or include the article link when it is useful."""
+
+    user_message = (
+        f"Article Title: {article_title}\n"
+        f"Article Link: {article_link}\n\n"
+        f"Article Content:\n{cleaned_content}\n\n"
+        f"Custom Instruction:\n{user_prompt}\n\n"
+        "Write the final social post now."
+    )
+
+    url = f"{OLLAMA_URL.rstrip('/')}/api/generate"
+    payload = {
+        "model": OLLAMA_MODEL,
+        "system": system_prompt,
+        "prompt": user_message,
+        "stream": False,
+        "options": {
+            "temperature": 0.8,
+            "top_p": 0.9,
+        },
+    }
+
+    try:
+        response = requests.post(url, json=payload, timeout=180)
+        response.raise_for_status()
+        generated_text = response.json().get("response", "").strip()
+        generated_text = generated_text.strip('"').strip("'")
+        generated_text = generated_text.replace("[LINK]", article_link)
+        return generated_text or None
+    except requests.RequestException:
+        logger.exception(
+            "Unable to communicate with Ollama while generating a custom post (%s).",
+            url,
+        )
+        return None
+    except Exception:
+        logger.exception("Unexpected error while generating a custom social post.")
+        return None
 
 def rewrite_social_post(current_content: str, platform: str = "mastodon") -> Optional[str]:
     """

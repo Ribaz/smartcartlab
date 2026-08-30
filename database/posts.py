@@ -1,27 +1,26 @@
 from __future__ import annotations
 
 import sqlite3
-from typing import List, Optional
 from datetime import datetime, timezone
+from typing import List, Optional
 from zoneinfo import ZoneInfo
 
 from config.settings import APP_TIMEZONE
-
 from database.connections import get_social_connection
 
 
 VALID_SOCIAL_STATUSES = {"PENDING", "APPROVED", "PUBLISHED", "REJECTED"}
-
 LOCAL_TIMEZONE = ZoneInfo(APP_TIMEZONE)
 UTC = timezone.utc
 DB_DATETIME_FORMAT = "%Y-%m-%d %H:%M:%S"
 
 
-
 def _validate_social_status(status: str) -> None:
     if status not in VALID_SOCIAL_STATUSES:
         allowed = ", ".join(sorted(VALID_SOCIAL_STATUSES))
-        raise ValueError(f"Unsupported social post status '{status}'. Allowed: {allowed}")
+        raise ValueError(
+            f"Unsupported social post status '{status}'. Allowed: {allowed}"
+        )
 
 
 def get_variations_count(article_id: str, platform: str) -> int:
@@ -36,6 +35,20 @@ def get_variations_count(article_id: str, platform: str) -> int:
             (article_id, platform),
         ).fetchone()
     return int(row["total"] if row else 0)
+
+
+def get_next_variation_number(article_id: str, platform: str) -> int:
+    """Return the next variation number for an article/platform pair."""
+    with get_social_connection() as conn:
+        row = conn.execute(
+            """
+            SELECT COALESCE(MAX(variation_number), 0) + 1 AS next_number
+            FROM social_posts
+            WHERE article_id = ? AND platform = ?
+            """,
+            (article_id, platform),
+        ).fetchone()
+    return int(row["next_number"] if row else 1)
 
 
 def insert_social_post(
@@ -66,13 +79,8 @@ def update_social_post_status(
     content: Optional[str] = None,
     *,
     clear_schedule: bool = False,
-):
-    """
-    Update lifecycle state and optionally content.
-
-    `clear_schedule` is explicit so that returning a post to PENDING never leaves
-    an obsolete publication date attached to it.
-    """
+) -> None:
+    """Update lifecycle state and optionally content."""
     _validate_social_status(status)
 
     assignments = ["status = ?", "updated_at = datetime('now')"]
@@ -85,7 +93,6 @@ def update_social_post_status(
     if clear_schedule:
         assignments.append("scheduled_at = NULL")
 
-    # A non-published state must not retain an accidental publication timestamp.
     if status != "PUBLISHED":
         assignments.append("published_at = NULL")
 
@@ -124,8 +131,8 @@ def get_next_approved_post(platform: str) -> Optional[sqlite3.Row]:
         ).fetchone()
 
 
-def set_post_scheduled(post_id: int, scheduled_at: str):
-    """Assign a schedule while keeping the editorial state APPROVED."""
+def set_post_scheduled(post_id: int, scheduled_at: str) -> None:
+    """Assign a UTC schedule while keeping the editorial state APPROVED."""
     with get_social_connection() as conn:
         conn.execute(
             """
@@ -141,7 +148,7 @@ def set_post_scheduled(post_id: int, scheduled_at: str):
 
 
 def get_due_scheduled_posts() -> List[sqlite3.Row]:
-    """Return approved posts whose scheduled publication time has arrived."""
+    """Return approved posts whose UTC publication time has arrived."""
     now_str = datetime.now(UTC).strftime(DB_DATETIME_FORMAT)
     with get_social_connection() as conn:
         return conn.execute(
@@ -158,8 +165,8 @@ def get_due_scheduled_posts() -> List[sqlite3.Row]:
         ).fetchall()
 
 
-def mark_post_as_published(post_id: int):
-    """Mark a post as published and record the actual publication timestamp."""
+def mark_post_as_published(post_id: int) -> None:
+    """Mark a post as published and record the actual UTC publication timestamp."""
     with get_social_connection() as conn:
         conn.execute(
             """
@@ -173,10 +180,9 @@ def mark_post_as_published(post_id: int):
         )
 
 
-def update_post_schedule_date (post_id: int, scheduled_at: str) -> None:
+def update_post_schedule_date(post_id: int, scheduled_at: str) -> None:
     """Interpret a dashboard datetime as local time and store it as UTC."""
     normalized = scheduled_at.strip().replace("T", " ")
-
     if len(normalized) == 16:
         normalized += ":00"
 
@@ -185,8 +191,7 @@ def update_post_schedule_date (post_id: int, scheduled_at: str) -> None:
         DB_DATETIME_FORMAT,
     ).replace(tzinfo=LOCAL_TIMEZONE)
 
-    utc_datetime = local_datetime.astimezone(UTC)
-    utc_value = utc_datetime.strftime(DB_DATETIME_FORMAT)
+    utc_value = local_datetime.astimezone(UTC).strftime(DB_DATETIME_FORMAT)
 
     with get_social_connection() as conn:
         conn.execute(
@@ -206,7 +211,7 @@ def is_scheduling_slot_taken(
     platform: str,
     scheduled_at: str,
 ) -> bool:
-    """Return True when the platform already has a post in the supplied slot."""
+    """Return True when the platform already has a post in the supplied UTC slot."""
     with get_social_connection() as conn:
         row = conn.execute(
             """
@@ -258,8 +263,8 @@ def get_all_posts_with_articles() -> List[sqlite3.Row]:
         ).fetchall()
 
 
-# Backward-compatible dashboard helpers retained for existing callers.
 def get_pending_posts() -> List[sqlite3.Row]:
+    """Return all posts waiting for human review."""
     with get_social_connection() as conn:
         return conn.execute(
             "SELECT * FROM social_posts WHERE status = 'PENDING' ORDER BY created_at DESC"

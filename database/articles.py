@@ -1,13 +1,20 @@
 from __future__ import annotations
 
 import sqlite3
-from typing import Dict, List
+from typing import Dict, List, Optional
 
 from database.connections import get_social_connection
 
 
 VALID_ARTICLE_STATUSES = {"NEW", "GENERATED", "FAILED"}
 
+
+def _validate_article_status(status: str) -> None:
+    if status not in VALID_ARTICLE_STATUSES:
+        allowed = ", ".join(sorted(VALID_ARTICLE_STATUSES))
+        raise ValueError(
+            f"Unsupported article status '{status}'. Allowed: {allowed}"
+        )
 
 
 def save_blog_article(article: Dict) -> bool:
@@ -48,13 +55,18 @@ def save_blog_article(article: Dict) -> bool:
     return True
 
 
+def get_blog_article_by_id(article_id: str) -> Optional[sqlite3.Row]:
+    """Fetch a single blog article by primary ID."""
+    with get_social_connection() as conn:
+        return conn.execute(
+            "SELECT * FROM blog_articles WHERE id = ?",
+            (article_id,),
+        ).fetchone()
+
+
 def get_blog_articles_by_status(status: str) -> List[sqlite3.Row]:
     """Return blog articles having the requested processing status."""
-    if status not in VALID_ARTICLE_STATUSES:
-        allowed = ", ".join(sorted(VALID_ARTICLE_STATUSES))
-        raise ValueError(
-            f"Unsupported article status '{status}'. Allowed: {allowed}"
-        )
+    _validate_article_status(status)
 
     with get_social_connection() as conn:
         return conn.execute(
@@ -70,11 +82,7 @@ def get_blog_articles_by_status(status: str) -> List[sqlite3.Row]:
 
 def update_blog_article_status(article_id: str, status: str) -> None:
     """Update the processing status of a blog article."""
-    if status not in VALID_ARTICLE_STATUSES:
-        allowed = ", ".join(sorted(VALID_ARTICLE_STATUSES))
-        raise ValueError(
-            f"Unsupported article status '{status}'. Allowed: {allowed}"
-        )
+    _validate_article_status(status)
 
     with get_social_connection() as conn:
         conn.execute(
