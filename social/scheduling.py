@@ -1,6 +1,8 @@
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
+from zoneinfo import ZoneInfo
 
+from config.settings import APP_TIMEZONE
 from database.posts import (
     get_next_approved_post,
     is_scheduling_slot_taken,
@@ -19,10 +21,17 @@ WEEKLY_SLOTS = {
     4: ["08:45", "12:45"],           # venerdì
 }
 
+LOCAL_TIMEZONE = ZoneInfo(APP_TIMEZONE)
+UTC = timezone.utc
+
 
 def get_next_candidate_slot(after: datetime) -> datetime:
-    """Return the first configured publication slot after the supplied datetime."""
-    current_day = after.date()
+    """Return the first configured local publication slot after the supplied datetime."""
+    if after.tzinfo is None:
+        raise ValueError("Expected a timezone-aware datetime.")
+
+    local_after = after.astimezone(LOCAL_TIMEZONE)
+    current_day = local_after.date()
 
     while True:
         weekday = current_day.weekday()
@@ -31,17 +40,16 @@ def get_next_candidate_slot(after: datetime) -> datetime:
         for slot_time in day_slots:
             hour, minute = map(int, slot_time.split(":"))
 
-            candidate = datetime.combine(
-                current_day,
-                datetime.min.time(),
-            ).replace(
+            candidate = datetime(
+                year=current_day.year,
+                month=current_day.month,
+                day=current_day.day,
                 hour=hour,
                 minute=minute,
-                second=0,
-                microsecond=0,
+                tzinfo=LOCAL_TIMEZONE,
             )
 
-            if candidate > after:
+            if candidate > local_after:
                 return candidate
 
         current_day += timedelta(days=1)
@@ -51,11 +59,12 @@ def get_next_available_slot(
     platform: str,
     after: datetime,
 ) -> datetime:
-    """Return the first configured slot not already used by the platform."""
+    """Return the first configured local slot not already used by the platform."""
     candidate = get_next_candidate_slot(after)
 
     while True:
-        candidate_str = candidate.strftime("%Y-%m-%d %H:%M:%S")
+        candidate_utc = candidate.astimezone(UTC)
+        candidate_str = candidate_utc.strftime("%Y-%m-%d %H:%M:%S")
 
         if not is_scheduling_slot_taken(platform, candidate_str):
             return candidate
@@ -77,10 +86,10 @@ def process_scheduling(platform: str = "mastodon"):
 
     target_slot = get_next_available_slot(
         platform=platform,
-        after=datetime.now(),
+        after=datetime.now(UTC),
     )
 
-    slot_str = target_slot.strftime("%Y-%m-%d %H:%M:%S")
+    slot_str = target_slot.astimezone(UTC).strftime("%Y-%m-%d %H:%M:%S")
 
     set_post_scheduled(approved_post["id"], slot_str)
     logger.info(f"[{platform}] Post #{approved_post['id']} successfully scheduled for {slot_str}.")

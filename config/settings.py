@@ -60,3 +60,6 @@ MASTODON_ACCESS_TOKEN  = os.getenv("MASTODON_ACCESS_TOKEN")
 # --- Facebook ---
 FACEBOOK_PAGE_ID       = os.getenv("FACEBOOK_PAGE_ID")
 FACEBOOK_ACCESS_TOKEN  = os.getenv("FACEBOOK_ACCESS_TOKEN")
+
+# --- Dashboard params ---
+APP_TIMEZONE = "Europe/Rome"

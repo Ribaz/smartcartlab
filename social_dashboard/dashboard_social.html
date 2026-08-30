@@ -415,7 +415,7 @@
                                            title="{{ post.content }}"
                                            data-post-id="{{ post.id }}"
                                            data-post-status="{{ post.status }}"
-                                           data-post-date="{{ post.scheduled_at or post.published_at or '' }}"
+                                           data-post-date="{{ post.scheduled_at_form or '' }}"
                                            {% if post.status == 'APPROVED' %}draggable="true" aria-label="Drag to reschedule post {{ post.id }}"{% endif %}>
                                             <span class="event-meta">
                                                 {% set platform_key = post.platform|lower %}
@@ -584,10 +584,10 @@
                             </td>
                             <td data-sort-value="{{ post.published_at or post.scheduled_at or '' }}">
                                 {% if post.status == 'PUBLISHED' and post.published_at %}
-                                    <strong>{{ post.published_at }}</strong>
+                                    <strong>{{ post.published_at_display }}</strong>
                                     <div class="small text-muted">Published</div>
                                 {% elif post.scheduled_at %}
-                                    <strong>{{ post.scheduled_at }}</strong>
+                                    <strong>{{ post.scheduled_at_display }}</strong>
                                     <div class="small text-muted">Scheduled</div>
                                 {% else %}
                                     <span class="text-muted fst-italic">No date</span>
@@ -612,7 +612,7 @@
                                                 data-bs-toggle="modal"
                                                 data-bs-target="#rescheduleModal"
                                                 data-post-id="{{ post.id }}"
-                                                data-post-date="{{ post.scheduled_at or '' }}">
+                                                data-post-date="{{ post.scheduled_at_form or '' }}">
                                             Schedule
                                         </button>
                                         <form action="/posts/{{ post.id }}/cancel" method="POST" class="d-inline">

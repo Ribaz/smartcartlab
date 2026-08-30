@@ -5,7 +5,9 @@ from __future__ import annotations
 
 import logging
 from collections import OrderedDict
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, timedelta, timezone
+from zoneinfo import ZoneInfo
+
 from pathlib import Path
 from typing import Any
 
@@ -25,6 +27,9 @@ from database.posts import (
     update_social_post_status,
 )
 
+from config.settings import APP_TIMEZONE
+
+
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
@@ -37,6 +42,10 @@ TIMELINE_PAST_DAYS = 7
 ARTICLE_COLOR_COUNT = 8
 MAX_TIMELINE_DAYS = 90
 
+LOCAL_TIMEZONE = ZoneInfo(APP_TIMEZONE)
+UTC = timezone.utc
+
+
 
 def _parse_db_datetime(value: str | None) -> datetime | None:
     """Parse timestamps stored by SQLite and HTML datetime-local fields."""
@@ -44,16 +53,38 @@ def _parse_db_datetime(value: str | None) -> datetime | None:
         return None
 
     normalized = value.strip().replace("T", " ")
+
     for fmt in ("%Y-%m-%d %H:%M:%S", "%Y-%m-%d %H:%M"):
         try:
-            return datetime.strptime(normalized, fmt)
+            parsed = datetime.strptime(normalized, fmt)
+            return parsed.replace(tzinfo=UTC).astimezone(LOCAL_TIMEZONE)
         except ValueError:
             continue
+
     return None
 
 
+def _format_local_datetime(value: str | None) -> str:
+    """Format a stored UTC timestamp for display in the local timezone."""
+    parsed = _parse_db_datetime(value)
+    return parsed.strftime("%d/%m/%Y %H:%M") if parsed else ""
+
+
+def _format_local_datetime_for_form(value: str | None) -> str:
+    """Format a stored UTC timestamp for an HTML datetime-local input."""
+    parsed = _parse_db_datetime(value)
+    return parsed.strftime("%Y-%m-%dT%H:%M") if parsed else ""
+
+
 def _as_dict(row: Any) -> dict[str, Any]:
-    return dict(row)
+    """Convert a database row and add local-time values used by the dashboard."""
+    post = dict(row)
+    post["scheduled_at_display"] = _format_local_datetime(post.get("scheduled_at"))
+    post["published_at_display"] = _format_local_datetime(post.get("published_at"))
+    post["scheduled_at_form"] = _format_local_datetime_for_form(
+        post.get("scheduled_at")
+    )
+    return post
 
 
 def _event_datetime(post: dict[str, Any]) -> datetime | None:
@@ -184,7 +215,12 @@ def _build_timeline(
 
     for article in articles.values():
         for posts in article["posts_by_day"].values():
-            posts.sort(key=lambda post: (post.get("event_at") or datetime.max, post.get("id", 0)))
+            posts.sort(
+                key=lambda post: (
+                    post.get("event_at") or datetime.max.replace(tzinfo=LOCAL_TIMEZONE),
+                    post.get("id", 0),
+                )
+            )
 
     # Most recently published articles first. Unknown dates fall to the bottom.
     def article_sort_key(article: dict[str, Any]) -> tuple[int, str]:
@@ -208,11 +244,17 @@ def render_dashboard(
     start: str | None = Query(default=None),
     end: str | None = Query(default=None),
 ):
-    today = date.today()
+    today = datetime.now(LOCAL_TIMEZONE).date()
     window_start, window_end, is_default_window = _resolve_window(start, end, today)
 
-    pending = get_pending_posts_with_articles()
-    all_posts = get_all_posts_with_articles()
+    pending = [
+        _as_dict(row)
+        for row in get_pending_posts_with_articles()
+    ]
+    all_posts = [
+        _as_dict(row)
+        for row in get_all_posts_with_articles()
+    ]
 
     timeline_rows = _filter_timeline_rows(
         rows=all_posts,

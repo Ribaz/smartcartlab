@@ -1,14 +1,20 @@
 from __future__ import annotations
 
 import sqlite3
-from datetime import datetime
 from typing import List, Optional
+from datetime import datetime, timezone
+from zoneinfo import ZoneInfo
+
+from config.settings import APP_TIMEZONE
 
 from database.connections import get_social_connection
 
 
 VALID_SOCIAL_STATUSES = {"PENDING", "APPROVED", "PUBLISHED", "REJECTED"}
 
+LOCAL_TIMEZONE = ZoneInfo(APP_TIMEZONE)
+UTC = timezone.utc
+DB_DATETIME_FORMAT = "%Y-%m-%d %H:%M:%S"
 
 
 
@@ -136,7 +142,7 @@ def set_post_scheduled(post_id: int, scheduled_at: str):
 
 def get_due_scheduled_posts() -> List[sqlite3.Row]:
     """Return approved posts whose scheduled publication time has arrived."""
-    now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    now_str = datetime.now(UTC).strftime(DB_DATETIME_FORMAT)
     with get_social_connection() as conn:
         return conn.execute(
             """
@@ -167,14 +173,20 @@ def mark_post_as_published(post_id: int):
         )
 
 
-def update_post_schedule_date(post_id: int, scheduled_at: str):
-    """Update `scheduled_at` without touching `published_at`."""
-    formatted_date = scheduled_at.strip().replace("T", " ")
-    if len(formatted_date) == 16:
-        formatted_date += ":00"
+def update_post_schedule_date (post_id: int, scheduled_at: str) -> None:
+    """Interpret a dashboard datetime as local time and store it as UTC."""
+    normalized = scheduled_at.strip().replace("T", " ")
 
-    # Validate before writing malformed values into a text-backed date column.
-    datetime.strptime(formatted_date, "%Y-%m-%d %H:%M:%S")
+    if len(normalized) == 16:
+        normalized += ":00"
+
+    local_datetime = datetime.strptime(
+        normalized,
+        DB_DATETIME_FORMAT,
+    ).replace(tzinfo=LOCAL_TIMEZONE)
+
+    utc_datetime = local_datetime.astimezone(UTC)
+    utc_value = utc_datetime.strftime(DB_DATETIME_FORMAT)
 
     with get_social_connection() as conn:
         conn.execute(
@@ -186,7 +198,7 @@ def update_post_schedule_date(post_id: int, scheduled_at: str):
                 updated_at = datetime('now')
             WHERE id = ?
             """,
-            (formatted_date, post_id),
+            (utc_value, post_id),
         )
 
 
