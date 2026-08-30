@@ -2,7 +2,9 @@
 # Facebook API client for publishing posts and uploading media.
 
 import logging
+
 import requests
+
 from config.settings import FACEBOOK_ACCESS_TOKEN, FACEBOOK_PAGE_ID
 
 logger = logging.getLogger(__name__)

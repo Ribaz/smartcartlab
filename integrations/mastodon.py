@@ -2,9 +2,11 @@
 # Mastodon API client for publishing posts and uploading media.
 
 import logging
-import requests
 from typing import Dict, Optional
-from config.settings import MASTODON_API_BASE_URL, MASTODON_ACCESS_TOKEN
+
+import requests
+
+from config.settings import MASTODON_ACCESS_TOKEN, MASTODON_API_BASE_URL
 
 logger = logging.getLogger(__name__)
 

@@ -9,7 +9,6 @@ import requests
 
 from config.settings import TELEGRAM_BOT_TOKEN
 
-
 logger = logging.getLogger(__name__)
 
 TELEGRAM_API_BASE_URL = (

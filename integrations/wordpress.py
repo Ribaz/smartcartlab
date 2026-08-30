@@ -5,7 +5,8 @@ import html
 import logging
 import urllib.request
 import xml.etree.ElementTree as ET
-from typing import Dict, List, Optional
+from typing import Dict, List
+
 from config.settings import WORDPRESS_URL
 
 logger = logging.getLogger(__name__)
@@ -61,7 +62,11 @@ def get_latest_posts(limit: int = 5, lang: str = "it") -> List[Dict]:
             title = html.unescape(title_el.text) if title_el is not None and title_el.text else ""
             link = link_el.text.strip() if link_el is not None and link_el.text else ""
             guid = guid_el.text.strip() if guid_el is not None and guid_el.text else link
-            pub_date = pub_date_el.text.strip() if pub_date_el is not None and pub_date_el.text else ""
+            pub_date = (
+                pub_date_el.text.strip()
+                if pub_date_el is not None and pub_date_el.text
+                else ""
+            )
 
             # Prefer full HTML content; fallback to description snippet
             body = ""
