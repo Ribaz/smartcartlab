@@ -113,8 +113,8 @@ def get_social_post_by_id(post_id: int) -> Optional[sqlite3.Row]:
         ).fetchone()
 
 
-def get_next_approved_post(platform: str) -> Optional[sqlite3.Row]:
-    """Return the oldest approved, not-yet-scheduled post for a platform."""
+def get_approved_unscheduled_posts(platform: str) -> List[sqlite3.Row]:
+    """Return all approved posts still waiting for a publication slot."""
     with get_social_connection() as conn:
         return conn.execute(
             """
@@ -124,10 +124,51 @@ def get_next_approved_post(platform: str) -> Optional[sqlite3.Row]:
               AND status = 'APPROVED'
               AND (scheduled_at IS NULL OR scheduled_at = '')
             ORDER BY created_at ASC, id ASC
-            LIMIT 1
             """,
             (platform,),
-        ).fetchone()
+        ).fetchall()
+
+
+def get_platform_scheduling_activity(platform: str) -> List[sqlite3.Row]:
+    """
+    Return scheduled and published posts used to build the platform timeline.
+
+    APPROVED posts contribute their scheduled timestamp.
+    PUBLISHED posts contribute their actual publication timestamp when available,
+    falling back to their scheduled timestamp.
+    """
+    with get_social_connection() as conn:
+        return conn.execute(
+            """
+            SELECT
+                id,
+                status,
+                scheduled_at,
+                published_at
+            FROM social_posts
+            WHERE platform = ?
+              AND (
+                    (
+                        status = 'APPROVED'
+                        AND scheduled_at IS NOT NULL
+                        AND scheduled_at != ''
+                    )
+                    OR
+                    (
+                        status = 'PUBLISHED'
+                        AND (
+                            (published_at IS NOT NULL AND published_at != '')
+                            OR
+                            (scheduled_at IS NOT NULL AND scheduled_at != '')
+                        )
+                    )
+              )
+            ORDER BY
+                COALESCE(published_at, scheduled_at) ASC,
+                id ASC
+            """,
+            (platform,),
+        ).fetchall()
 
 
 def set_post_scheduled(post_id: int, scheduled_at: str) -> None:
