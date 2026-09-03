@@ -220,6 +220,38 @@
         .timeline-platform-badge[data-platform="twitter"] { background: #212529; }
         .timeline-platform-badge[data-platform="bluesky"] { background: #0285ff; }
 
+        .article-published-marker {
+            display: flex;
+            align-items: center;
+            gap: .4rem;
+            margin-bottom: .5rem;
+            padding: .4rem .5rem;
+            border: 1px dashed var(--article-color);
+            border-radius: .5rem;
+            background: color-mix(in srgb, var(--article-color), #fff 92%);
+            color: #212529;
+            font-size: .72rem;
+            font-weight: 700;
+            line-height: 1.2;
+        }
+
+        .article-published-marker::before {
+            content: "📄";
+            flex-shrink: 0;
+        }
+
+        .article-published-marker .article-published-label {
+            display: block;
+        }
+
+        .article-published-marker .article-published-time {
+            display: block;
+            margin-top: .1rem;
+            color: var(--text-muted);
+            font-size: .66rem;
+            font-weight: 500;
+        }
+
         .unscheduled-notice {
             display: inline-flex;
             align-items: center;
@@ -432,6 +464,19 @@
                             {% for day in timeline_days %}
                                 <div class="timeline-cell {% if day == today %}is-today{% endif %}"
                                      data-date="{{ day.isoformat() }}">
+
+                                    {% if article.pub_date_day == day.isoformat() %}
+                                        <div class="article-published-marker"
+                                            title="Article published on {{ article.pub_date[:16]|replace('T', ' ') }}">
+                                            <div>
+                                                <span class="article-published-label">Article published</span>
+                                                <span class="article-published-time">
+                                                    {{ article.pub_date_time or '' }}
+                                                </span>
+                                            </div>
+                                        </div>
+                                    {% endif %}
+
                                     {% for post in article.posts_by_day[day.isoformat()] %}
                                         <a href="#post-row-{{ post.id }}"
                                            class="timeline-event {% if post.status == 'PUBLISHED' %}published{% endif %}"

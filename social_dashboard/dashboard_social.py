@@ -51,16 +51,20 @@ def _parse_db_datetime(value: str | None) -> datetime | None:
     if not value:
         return None
 
-    normalized = value.strip().replace("T", " ")
+    normalized = str(value).strip()
 
-    for fmt in ("%Y-%m-%d %H:%M:%S", "%Y-%m-%d %H:%M"):
-        try:
-            parsed = datetime.strptime(normalized, fmt)
-            return parsed.replace(tzinfo=UTC).astimezone(LOCAL_TIMEZONE)
-        except ValueError:
-            continue
+    if normalized.endswith("Z"):
+        normalized = normalized[:-1] + "+00:00"
 
-    return None
+    try:
+        parsed = datetime.fromisoformat(normalized)
+    except ValueError:
+        return None
+
+    if parsed.tzinfo is None:
+        parsed = parsed.replace(tzinfo=UTC)
+
+    return parsed.astimezone(LOCAL_TIMEZONE)
 
 
 def _format_local_datetime(value: str | None) -> str:
@@ -173,6 +177,7 @@ def _build_timeline(
     for raw_row in rows:
         post = _as_dict(raw_row)
         article_id = str(post["article_id"])
+        article_pub_dt = _parse_db_datetime(post.get("article_pub_date"))
 
         if article_id not in articles:
             articles[article_id] = {
@@ -180,6 +185,9 @@ def _build_timeline(
                 "title": post.get("article_title") or f"Article {article_id}",
                 "link": post.get("article_link"),
                 "pub_date": post.get("article_pub_date"),
+                "pub_date_raw": post.get("article_pub_date"),
+                "pub_date_day": article_pub_dt.date().isoformat() if article_pub_dt else None,
+                "pub_date_time": article_pub_dt.strftime("%H:%M") if article_pub_dt else None,
                 "media_url": post.get("article_media_url") or post.get("media_url"),
                 "color_index": len(articles) % ARTICLE_COLOR_COUNT,
                 "posts": [],

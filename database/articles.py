@@ -4,8 +4,15 @@ import sqlite3
 from typing import Dict, List, Optional
 
 from database.connections import get_social_connection
+from datetime import datetime, timezone
+from zoneinfo import ZoneInfo
+
+from config.settings import APP_TIMEZONE
 
 VALID_ARTICLE_STATUSES = {"NEW", "GENERATED", "FAILED"}
+LOCAL_TIMEZONE = ZoneInfo(APP_TIMEZONE)
+UTC = timezone.utc
+DB_DATETIME_FORMAT = "%Y-%m-%d %H:%M:%S"
 
 
 def _validate_article_status(status: str) -> None:
@@ -14,6 +21,27 @@ def _validate_article_status(status: str) -> None:
         raise ValueError(
             f"Unsupported article status '{status}'. Allowed: {allowed}"
         )
+
+
+def _normalize_article_pub_date(value: str | None) -> str:
+    if not value:
+        return ""
+
+    normalized = value.strip()
+
+    # ISO timestamps ending in Z mean UTC.
+    if normalized.endswith("Z"):
+        normalized = normalized[:-1] + "+00:00"
+
+    try:
+        parsed = datetime.fromisoformat(normalized)
+    except ValueError:
+        return value
+
+    if parsed.tzinfo is None:
+        parsed = parsed.replace(tzinfo=UTC)
+
+    return parsed.astimezone(UTC).strftime(DB_DATETIME_FORMAT)
 
 
 def save_blog_article(article: Dict) -> bool:
@@ -46,7 +74,7 @@ def save_blog_article(article: Dict) -> bool:
                 article["title"],
                 article["content"],
                 article["link"],
-                article.get("date_gmt", ""),
+                _normalize_article_pub_date(article.get("date_gmt")),
                 article.get("media_url"),
                 article.get("lang", "it"),
             ),
