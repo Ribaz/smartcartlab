@@ -510,8 +510,8 @@
                                         <button type="submit" formaction="/posts/{{ post.id }}/rewrite" formnovalidate class="btn btn-outline-secondary btn-sm">✨ Rewrite</button>
                                     </div>
                                     <div class="d-flex gap-2">
-                                        <button type="submit" formaction="/posts/{{ post.id }}/update" class="btn btn-outline-primary btn-sm">Save</button>
-                                        <button type="submit" formaction="/posts/{{ post.id }}/approve" formnovalidate class="btn btn-success btn-sm">Approve</button>
+                                        <button type="submit" formaction="/posts/{{ post.id }}/update" class="btn btn-outline-primary btn-sm" data-save-button disabled>Save</button>
+                                        <button type="submit" formaction="/posts/{{ post.id }}/approve" formnovalidate class="btn btn-success btn-sm" data-approve-button>Approve</button>
                                     </div>
                                 </div>
                             </form>
@@ -800,12 +800,32 @@
         });
     }
 
-    // Live character counters in review cards.
+    // Live character counters and Save / Approve state in review cards.
     document.querySelectorAll('.review-card textarea').forEach(textarea => {
         const card = textarea.closest('.review-card');
         const counter = card?.querySelector('[data-character-count]');
-        if (!counter) return;
-        textarea.addEventListener('input', () => counter.textContent = textarea.value.length);
+        const saveButton = card?.querySelector('[data-save-button]');
+        const approveButton = card?.querySelector('[data-approve-button]');
+
+        const initialContent = textarea.value;
+
+        function updateReviewState() {
+            if (counter) {
+                counter.textContent = textarea.value.length;
+            }
+
+            const hasChanges = textarea.value !== initialContent;
+
+            if (saveButton) {
+                saveButton.disabled = !hasChanges;
+            }
+            if (approveButton) {
+                approveButton.disabled = hasChanges;
+            }
+        }
+
+        textarea.addEventListener('input', updateReviewState);
+        updateReviewState();
     });
 
     // Schedule modal population and programmatic opening from drag & drop.
