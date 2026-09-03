@@ -29,6 +29,8 @@ from database.posts import (
 from integrations.facebook import post_to_facebook
 from integrations.mastodon import post_to_mastodon
 from social.copywriter import generate_custom_social_post, rewrite_social_post
+from social.scheduling import process_scheduling
+
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -514,6 +516,16 @@ def reschedule_post(post_id: int, scheduled_at: str = Form(...)):
     update_post_schedule_date(post_id, scheduled_at)
     logger.info("Post #%s scheduled for %s.", post_id, scheduled_at)
     return RedirectResponse(url="/#timeline", status_code=303)
+
+
+@app.post("/posts/schedule-approved")
+def schedule_approved_posts():
+    for platform in ("mastodon", "facebook"):
+        process_scheduling(platform=platform)
+
+    logger.info("All APPROVED unscheduled posts scheduled via dashboard.")
+    return RedirectResponse(url="/#timeline", status_code=303)
+    
 
 
 if __name__ == "__main__":

@@ -424,7 +424,14 @@
             <div class="timeline-frame shadow-sm">
                 <div class="timeline-scroll">
                     <div class="timeline-grid timeline-header" style="grid-template-columns: 300px repeat({{ timeline_days|length }}, var(--timeline-day-width));">
-                        <div class="timeline-corner">Article / campaign</div>
+                        <div class="timeline-corner">
+                            Article / campaign
+                            <form method="POST" action="/posts/schedule-approved" id="scheduleApprovedForm" class="d-none">
+                                <button type="submit" class="btn btn-primary btn-sm">
+                                    Schedule approved
+                                </button>
+                            </form>
+                        </div>
                         {% for day in timeline_days %}
                             <div class="timeline-day {% if day == today %}is-today{% endif %}">
                                 <div class="small text-uppercase text-muted">{{ day.strftime('%a') }}</div>
@@ -634,6 +641,7 @@
                     {% for post in all_posts %}
                         <tr id="post-row-{{ post.id }}"
                             data-status="{{ post.status }}"
+                            data-scheduled="{{ 'true' if post.scheduled_at else 'false' }}"
                             data-platform="{{ post.platform|lower }}"
                             data-article="{{ post.article_id }}"
                             data-search="{{ (post.article_title ~ ' ' ~ post.content)|lower|e }}">
@@ -1035,6 +1043,20 @@
 
     window.addEventListener('hashchange', () => window.setTimeout(highlightTargetRow, 80));
     window.addEventListener('load', highlightTargetRow);
+
+    // Show the bulk scheduling action only when there are APPROVED unscheduled posts.
+    const scheduleApprovedForm = document.getElementById('scheduleApprovedForm');
+
+    const hasUnscheduledApprovedPosts = Array.from(
+        document.querySelectorAll('#postsTable tbody tr')
+    ).some(row =>
+        row.dataset.status === 'APPROVED'
+        && row.dataset.scheduled === 'false'
+    );
+
+    if (hasUnscheduledApprovedPosts) {
+        scheduleApprovedForm?.classList.remove('d-none');
+    }
 
     // Loading feedback for submit actions.
     document.querySelectorAll('button[type="submit"]').forEach(button => {
