@@ -368,7 +368,7 @@ def get_smart_scheduling_slot(
 # Scheduling process
 # ---------------------------------------------------------------------------
 
-def process_scheduling(platform: str = "mastodon") -> None:
+def process_scheduling(platform: str) -> None:
     """
     Schedule every APPROVED unscheduled post for a platform.
 
@@ -376,7 +376,7 @@ def process_scheduling(platform: str = "mastodon") -> None:
     activity considered while scheduling the remaining backlog.
     """
     logger.info(
-        "Phase 2 [%s]: Assigning publication slots to approved posts...",
+        "[%s] Assigning publication slots to approved posts...",
         platform,
     )
 

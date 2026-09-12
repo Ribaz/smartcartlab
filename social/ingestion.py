@@ -10,7 +10,7 @@ def process_wordpress_ingestion() -> None:
     """Fetch WordPress once and save newly discovered articles."""
     logger.info("Checking WordPress for new articles...")
 
-    articles = get_latest_posts(limit=3, lang="it")
+    articles = get_latest_posts(limit=10, lang="it")
 
     if not articles:
         logger.info("No articles returned from WordPress.")

@@ -25,17 +25,16 @@ def process_publishing() -> None:
         return
 
     for post in due_posts:
-        post_id = post["id"]
-        platform = post["platform"]
-        content = post["content"]
+    post_id = post["id"]
+    platform = post["platform"]
+    content = post["content"]
 
+    try:
         logger.info(
             "Publishing post #%s to platform '%s'...",
             post_id,
             platform,
         )
-
-        success = False
 
         if platform == "mastodon":
             success = post_to_mastodon(status_text=content)
@@ -49,25 +48,33 @@ def process_publishing() -> None:
             )
             continue
 
-        if success:
-            mark_post_as_published(post_id)
-            
-            logger.info(
-                "Post #%s published successfully on %s.",
-                post_id,
-                platform,
-            )
-
-            send_telegram_message(
-                "✅ *Post pubblicato*\n"
-                f"Piattaforma: *{platform}*\n\n"
-                f"{content}",
-                TELEGRAM_ADMIN_CHAT_ID,
-                "Markdown"
-            )
-        else:
+        if not success:
             logger.error(
                 "Failed to publish post #%s on %s.",
                 post_id,
                 platform,
             )
+            continue
+
+        mark_post_as_published(post_id)
+
+        logger.info(
+            "Post #%s published successfully on %s.",
+            post_id,
+            platform,
+        )
+
+        send_telegram_message(
+            "✅ *Post pubblicato*\n"
+            f"Piattaforma: *{platform}*\n\n"
+            f"{content}",
+            TELEGRAM_ADMIN_CHAT_ID,
+            "Markdown",
+        )
+
+    except Exception:
+        logger.exception(
+            "Unexpected error while publishing post #%s on %s.",
+            post_id,
+            platform,
+        )
