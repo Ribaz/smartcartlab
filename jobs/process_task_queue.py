@@ -10,6 +10,8 @@ from database.task_queue import (
     mark_task_completed,
     mark_task_failed,
 )
+from tasks.social_text_generation import execute_social_text_generation
+
 
 logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
@@ -19,16 +21,6 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
-def _execute_test_task(payload: dict[str, Any]) -> dict[str, Any]:
-    """Execute a simple test task."""
-    message = payload.get("message", "")
-
-    logger.info("TEST task message: %s", message)
-
-    return {
-        "message": message,
-        "processed": True,
-    }
 
 
 def _execute_task(task: dict[str, Any]) -> dict[str, Any]:
@@ -36,8 +28,8 @@ def _execute_task(task: dict[str, Any]) -> dict[str, Any]:
     task_type = task["task_type"]
     payload = task["payload"]
 
-    if task_type == "TEST":
-        return _execute_test_task(payload)
+    if task_type == "GENERATE_SOCIAL_TEXT":
+        return execute_social_text_generation(payload)
 
     raise ValueError(f"Unsupported task type: {task_type}")
 

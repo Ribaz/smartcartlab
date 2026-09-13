@@ -9,7 +9,7 @@ from zoneinfo import ZoneInfo
 
 from config.settings import APP_TIMEZONE
 
-VALID_ARTICLE_STATUSES = {"NEW", "GENERATED", "FAILED"}
+VALID_ARTICLE_STATUSES = {"NEW", "QUEUED", "GENERATED", "FAILED"}
 LOCAL_TIMEZONE = ZoneInfo(APP_TIMEZONE)
 UTC = timezone.utc
 DB_DATETIME_FORMAT = "%Y-%m-%d %H:%M:%S"

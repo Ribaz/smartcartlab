@@ -4,7 +4,7 @@
 import logging
 
 from database.schema_social import initialize_social_db
-from social.generation import process_new_articles
+from social.generation import queue_new_articles
 
 logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
@@ -20,7 +20,7 @@ def main() -> None:
     logger.info("Starting social generation job.")
     initialize_social_db()
 
-    process_new_articles(PLATFORMS)
+    queue_new_articles(PLATFORMS)
 
     logger.info("Social generation job completed.")
 
