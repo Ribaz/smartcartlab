@@ -33,6 +33,7 @@ MIN_REVIEW_COUNT = 50         # minimum number of reviews
 
 # --- Database ---
 DB_PATH = os.getenv("DB_PATH", "data/smartcartlab.db")
+TASK_DB_PATH  = os.getenv("TASK_DB_PATH", "data/taskmanager.db")
 SOCIAL_DB_PATH = os.getenv("SOCIAL_DB_PATH", "data/socialmanager.db")
 
 # --- Schedule ---
