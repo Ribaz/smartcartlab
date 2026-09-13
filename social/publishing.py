@@ -25,56 +25,56 @@ def process_publishing() -> None:
         return
 
     for post in due_posts:
-    post_id = post["id"]
-    platform = post["platform"]
-    content = post["content"]
+        post_id = post["id"]
+        platform = post["platform"]
+        content = post["content"]
 
-    try:
-        logger.info(
-            "Publishing post #%s to platform '%s'...",
-            post_id,
-            platform,
-        )
-
-        if platform == "mastodon":
-            success = post_to_mastodon(status_text=content)
-        elif platform == "facebook":
-            success = post_to_facebook(text=content)
-        else:
-            logger.warning(
-                "Platform '%s' is not supported for post #%s.",
-                platform,
-                post_id,
-            )
-            continue
-
-        if not success:
-            logger.error(
-                "Failed to publish post #%s on %s.",
+        try:
+            logger.info(
+                "Publishing post #%s to platform '%s'...",
                 post_id,
                 platform,
             )
-            continue
 
-        mark_post_as_published(post_id)
+            if platform == "mastodon":
+                success = post_to_mastodon(status_text=content)
+            elif platform == "facebook":
+                success = post_to_facebook(text=content)
+            else:
+                logger.warning(
+                    "Platform '%s' is not supported for post #%s.",
+                    platform,
+                    post_id,
+                )
+                continue
 
-        logger.info(
-            "Post #%s published successfully on %s.",
-            post_id,
-            platform,
-        )
+            if not success:
+                logger.error(
+                    "Failed to publish post #%s on %s.",
+                    post_id,
+                    platform,
+                )
+                continue
 
-        send_telegram_message(
-            "✅ *Post pubblicato*\n"
-            f"Piattaforma: *{platform}*\n\n"
-            f"{content}",
-            TELEGRAM_ADMIN_CHAT_ID,
-            "Markdown",
-        )
+            mark_post_as_published(post_id)
 
-    except Exception:
-        logger.exception(
-            "Unexpected error while publishing post #%s on %s.",
-            post_id,
-            platform,
-        )
+            logger.info(
+                "Post #%s published successfully on %s.",
+                post_id,
+                platform,
+            )
+
+            send_telegram_message(
+                "✅ *Post pubblicato*\n"
+                f"Piattaforma: *{platform}*\n\n"
+                f"{content}",
+                TELEGRAM_ADMIN_CHAT_ID,
+                "Markdown",
+            )
+
+        except Exception:
+            logger.exception(
+                "Unexpected error while publishing post #%s on %s.",
+                post_id,
+                platform,
+            )

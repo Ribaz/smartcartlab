@@ -68,7 +68,7 @@ def process_new_articles(platforms: list[str]):
                 f"*{article['title']}*\n\n"
                 "Sono pronti per la revisione nella dashboard.",
                 TELEGRAM_ADMIN_CHAT_ID,
-                "Markdown"
+                parse_mode="Markdown"
             )
 
         except Exception:
