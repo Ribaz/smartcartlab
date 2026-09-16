@@ -11,6 +11,8 @@ from database.task_queue import (
     mark_task_failed,
 )
 from tasks.social_text_generation import execute_social_text_generation
+from tasks.article_topic_generation import execute_article_topic_generation
+from tasks.social_post_generation import execute_social_post_generation
 
 
 logging.basicConfig(
@@ -28,8 +30,14 @@ def _execute_task(task: dict[str, Any]) -> dict[str, Any]:
     task_type = task["task_type"]
     payload = task["payload"]
 
+    if task_type == "GENERATE_ARTICLE_TOPIC":
+        return execute_article_topic_generation(payload)
+
     if task_type == "GENERATE_SOCIAL_TEXT":
         return execute_social_text_generation(payload)
+    
+    if task_type == "GENERATE_SOCIAL_POST":
+        return execute_social_post_generation(payload)
 
     raise ValueError(f"Unsupported task type: {task_type}")
 

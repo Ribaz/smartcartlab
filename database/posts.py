@@ -57,17 +57,35 @@ def insert_social_post(
     variation_number: int = 1,
     media_url: Optional[str] = None,
     scheduled_at: Optional[str] = None,
+    topic_id: Optional[int] = None,
 ) -> int:
     """Insert a PENDING social post and return its generated ID."""
     with get_social_connection() as conn:
         cursor = conn.execute(
             """
             INSERT INTO social_posts
-                (article_id, platform, variation_number, content, media_url, status, scheduled_at)
+                (
+                    article_id,
+                    topic_id,
+                    platform,
+                    variation_number,
+                    content,
+                    media_url,
+                    status,
+                    scheduled_at
+                )
             VALUES
-                (?, ?, ?, ?, ?, 'PENDING', ?)
+                (?, ?, ?, ?, ?, ?, 'PENDING', ?)
             """,
-            (article_id, platform, variation_number, content, media_url, scheduled_at),
+            (
+                article_id,
+                topic_id,
+                platform,
+                variation_number,
+                content,
+                media_url,
+                scheduled_at,
+            ),
         )
         return int(cursor.lastrowid)
 

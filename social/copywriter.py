@@ -8,9 +8,7 @@ import logging
 import re
 from typing import Any
 
-import requests
-
-from config.settings import OLLAMA_MODEL, OLLAMA_URL
+from integrations.ollama import generate_text
 
 
 logger = logging.getLogger(__name__)
@@ -27,7 +25,6 @@ EXPECTED_POSTS = {
 }
 
 CONTENT_LIMIT = 2500
-OLLAMA_GENERATE_URL = f"{OLLAMA_URL.rstrip('/')}/api/generate"
 
 
 def _get_language_instruction(language: str) -> str:
@@ -179,41 +176,6 @@ def _validate_generated_posts(posts: object) -> bool:
     return found_numbers == set(EXPECTED_POSTS)
 
 
-def _request_ollama(
-    *,
-    system_prompt: str,
-    user_prompt: str,
-    temperature: float,
-    timeout: int,
-) -> str | None:
-    """Send a generation request to Ollama and return its text response."""
-    payload = {
-        "model": OLLAMA_MODEL,
-        "system": system_prompt,
-        "prompt": user_prompt,
-        "stream": False,
-        "options": {
-            "temperature": temperature,
-            "top_p": 0.9,
-        },
-    }
-
-    try:
-        response = requests.post(
-            OLLAMA_GENERATE_URL,
-            json=payload,
-            timeout=timeout,
-        )
-        response.raise_for_status()
-        return response.json().get("response", "").strip() or None
-    except requests.RequestException:
-        logger.exception(
-            "Unable to communicate with Ollama (%s).",
-            OLLAMA_GENERATE_URL,
-        )
-        return None
-
-
 def generate_social_posts(
     article_title: str,
     article_content: str,
@@ -289,7 +251,7 @@ Article content:
 Generate the three posts now.
 """.strip()
 
-    raw_response = _request_ollama(
+    raw_response = generate_text(
         system_prompt=system_prompt,
         user_prompt=user_prompt,
         temperature=0.6,
@@ -319,6 +281,98 @@ Generate the three posts now.
         platform,
     )
     return formatted_posts
+
+
+def generate_social_post(
+    *,
+    article_title: str,
+    article_content: str,
+    article_link: str,
+    topic: str,
+    platform: str,
+    language: str,
+) -> dict[str, str]:
+    """Generate one platform-specific social post focused on one article topic."""
+    platform = platform.lower()
+    platform_rules = _get_platform_instructions(platform)
+    language_rule = _get_language_instruction(language)
+    cleaned_content = _strip_html_tags(article_content)[:CONTENT_LIMIT]
+
+    if not cleaned_content:
+        raise ValueError("Article content is required for social post generation.")
+
+    if not topic.strip():
+        raise ValueError("Topic is required for social post generation.")
+
+    system_prompt = f"""
+You are the social media copywriter for SmartCartLab.
+
+Create exactly one social media post.
+
+The supplied topic defines the specific subject the post must focus on.
+The supplied article provides the factual source and context used to develop
+that topic.
+
+Develop the topic using only information, observations, and reasoning supported
+by the supplied article.
+
+Do not summarize the entire article.
+Do not introduce factual claims, examples, or details that are not supported
+by the article.
+Do not change the subject to another topic from the article.
+
+{platform_rules}
+
+{language_rule}
+
+The article is already available online.
+Do not claim that it was published today.
+
+Return exclusively the final post text.
+Do not return JSON.
+Do not include labels, Markdown fences, quotation marks, or introductory text.
+""".strip()
+
+    user_prompt = f"""
+Article title:
+{article_title}
+
+Topic:
+{topic}
+
+Article link:
+{article_link}
+
+Article content:
+{cleaned_content}
+
+Write exactly one final social media post focused on the supplied topic.
+""".strip()
+
+    generated_text = generate_text(
+        system_prompt=system_prompt,
+        user_prompt=user_prompt,
+        temperature=0.6,
+        timeout=180,
+    )
+
+    if not generated_text:
+        raise RuntimeError("Ollama did not generate a social post.")
+
+    cleaned_text = generated_text.strip('"').strip("'")
+    cleaned_text = cleaned_text.replace("[LINK]", article_link)
+
+    if platform == "mastodon" and len(cleaned_text) > 500:
+        raise ValueError(
+            f"Generated Mastodon post exceeds 500 characters "
+            f"({len(cleaned_text)} characters)."
+        )
+
+    return {
+        "platform": platform,
+        "content": cleaned_text,
+    }   
+
 
 
 def generate_custom_social_post(
@@ -366,7 +420,7 @@ Custom instruction:
 Write exactly one final social media post now.
 """.strip()
 
-    generated_text = _request_ollama(
+    generated_text = generate_text(
         system_prompt=system_prompt,
         user_prompt=user_message,
         temperature=0.6,
@@ -411,7 +465,7 @@ Original post:
 Provide exactly one rewritten version.
 """.strip()
 
-    rewritten_text = _request_ollama(
+    rewritten_text = generate_text(
         system_prompt=system_prompt,
         user_prompt=user_prompt,
         temperature=0.6,

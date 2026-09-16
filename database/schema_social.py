@@ -32,6 +32,7 @@ def initialize_social_db():
             CREATE TABLE IF NOT EXISTS social_posts (
                 id                   INTEGER PRIMARY KEY AUTOINCREMENT,
                 article_id           TEXT NOT NULL,
+                topic_id             INTEGER,
                 platform             TEXT NOT NULL,
                 variation_number     INTEGER DEFAULT 1,
                 content              TEXT NOT NULL,
@@ -42,7 +43,22 @@ def initialize_social_db():
                 published_at         TEXT,
                 created_at           TEXT DEFAULT (datetime('now')),
                 updated_at           TEXT DEFAULT (datetime('now')),
-                FOREIGN KEY (article_id) REFERENCES blog_articles (id)
+                FOREIGN KEY (article_id) REFERENCES blog_articles (id),
+                FOREIGN KEY (topic_id) REFERENCES article_topics (id)
+            )
+            """
+        )
+
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS article_topics (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                article_id TEXT NOT NULL,
+                topic TEXT NOT NULL,
+                created_at TEXT NOT NULL,
+                FOREIGN KEY (article_id)
+                    REFERENCES blog_articles(id)
+                    ON DELETE CASCADE
             )
             """
         )
@@ -59,5 +75,9 @@ def initialize_social_db():
             ON social_posts (article_id, platform)
             """
         )
+
+
+
+
 
 
