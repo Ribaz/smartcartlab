@@ -90,6 +90,18 @@ def get_blog_article_by_id(article_id: str) -> Optional[sqlite3.Row]:
         ).fetchone()
 
 
+def get_blog_articles() -> List[sqlite3.Row]:
+    """Return all blog articles ordered from oldest to newest."""
+    with get_social_connection() as conn:
+        return conn.execute(
+            """
+            SELECT *
+            FROM blog_articles
+            ORDER BY pub_date ASC, created_at ASC
+            """
+        ).fetchall()
+        
+
 def get_blog_articles_by_status(status: str) -> List[sqlite3.Row]:
     """Return blog articles having the requested processing status."""
     _validate_article_status(status)
