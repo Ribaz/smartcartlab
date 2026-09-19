@@ -49,8 +49,9 @@ def main() -> None:
 
         if has_active_task(
             ARTICLE_TOPIC_TASK_TYPE,
-            payload_key="article_id",
-            payload_value=article_id,
+            payload_values={
+                "article_id": article_id,
+            },
         ):
             continue
 

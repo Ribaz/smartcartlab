@@ -327,3 +327,28 @@ def get_pending_posts() -> List[sqlite3.Row]:
         return conn.execute(
             "SELECT * FROM social_posts WHERE status = 'PENDING' ORDER BY created_at DESC"
         ).fetchall()
+
+
+def social_post_exists(
+    topic_id: int,
+    platform: str,
+) -> bool:
+    """Return whether a social post exists for a topic and platform."""
+    with get_social_connection() as connection:
+        row = connection.execute(
+            """
+            SELECT 1
+            FROM social_posts
+            WHERE topic_id = ?
+              AND platform = ?
+            LIMIT 1
+            """,
+            (
+                topic_id,
+                platform.lower(),
+            ),
+        ).fetchone()
+
+    return row is not None
+
+

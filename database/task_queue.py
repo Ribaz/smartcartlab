@@ -183,27 +183,29 @@ def mark_task_failed(
 def has_active_task(
     task_type: str,
     *,
-    payload_key: str,
-    payload_value: str | int,
+    payload_values: dict[str, str | int],
 ) -> bool:
-    """Return whether an active task matches a payload value."""
-    json_path = f"$.{payload_key}"
+    """Return whether an active task matches the requested payload values."""
+    conditions = []
+    parameters: list[str | int] = [task_type]
+
+    for key, value in payload_values.items():
+        conditions.append("json_extract(payload, ?) = ?")
+        parameters.extend((f"$.{key}", value))
+
+    where_payload = " AND ".join(conditions)
 
     with get_task_connection() as connection:
         row = connection.execute(
-            """
+            f"""
             SELECT 1
             FROM task_queue
             WHERE task_type = ?
               AND status IN ('PENDING', 'RUNNING')
-              AND json_extract(payload, ?) = ?
+              AND {where_payload}
             LIMIT 1
             """,
-            (
-                task_type,
-                json_path,
-                payload_value,
-            ),
+            parameters,
         ).fetchone()
 
     return row is not None

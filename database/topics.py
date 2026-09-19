@@ -16,7 +16,7 @@ def _utc_now() -> str:
 
 
 def save_article_topic(
-    article_id: int,
+    article_id: str,
     topic: str,
 ) -> int:
     """Save a topic for an article and return its ID."""
@@ -45,7 +45,7 @@ def save_article_topic(
     return topic_id
 
 
-def get_article_topics(article_id: int) -> list[str]:
+def get_article_topics(article_id: str) -> list[str]:
     """Return all topics already created for an article."""
     with get_social_connection() as connection:
         rows = connection.execute(
@@ -61,6 +61,18 @@ def get_article_topics(article_id: int) -> list[str]:
     return [row["topic"] for row in rows]
 
 
+def get_all_article_topics() -> list[sqlite3.Row]:
+    """Return all article topics ordered by ID."""
+    with get_social_connection() as connection:
+        return connection.execute(
+            """
+            SELECT id, article_id, topic, created_at
+            FROM article_topics
+            ORDER BY id
+            """
+        ).fetchall()
+
+
 def get_article_topic(topic_id: int) -> sqlite3.Row | None:
     """Return one article topic by ID."""
     with get_social_connection() as connection:
@@ -72,5 +84,17 @@ def get_article_topic(topic_id: int) -> sqlite3.Row | None:
             """,
             (topic_id,),
         ).fetchone()
+
+
+def get_article_topics_all() -> list[sqlite3.Row]:
+    """Return all article topics ordered by ID."""
+    with get_social_connection() as connection:
+        return connection.execute(
+            """
+            SELECT id, article_id, topic, created_at
+            FROM article_topics
+            ORDER BY id
+            """
+        ).fetchall()
 
 
