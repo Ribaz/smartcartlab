@@ -1,13 +1,12 @@
 from __future__ import annotations
 
 import sqlite3
-from typing import Dict, List, Optional
-
-from database.connections import get_social_connection
 from datetime import datetime, timezone
+from typing import Dict, List, Optional
 from zoneinfo import ZoneInfo
 
 from config.settings import APP_TIMEZONE
+from database.connections import get_social_connection
 
 VALID_ARTICLE_STATUSES = {"NEW", "QUEUED", "GENERATED", "FAILED"}
 LOCAL_TIMEZONE = ZoneInfo(APP_TIMEZONE)

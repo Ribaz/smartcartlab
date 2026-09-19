@@ -31,7 +31,6 @@ from integrations.mastodon import post_to_mastodon
 from social.copywriter import generate_custom_social_post, rewrite_social_post
 from social.scheduling import process_scheduling
 
-
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
