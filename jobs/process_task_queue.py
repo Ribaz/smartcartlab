@@ -10,10 +10,8 @@ from database.task_queue import (
     mark_task_completed,
     mark_task_failed,
 )
-from tasks.social_text_generation import execute_social_text_generation
 from tasks.article_topic_generation import execute_article_topic_generation
 from tasks.social_post_generation import execute_social_post_generation
-
 
 logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
@@ -33,9 +31,6 @@ def _execute_task(task: dict[str, Any]) -> dict[str, Any]:
     if task_type == "GENERATE_ARTICLE_TOPIC":
         return execute_article_topic_generation(payload)
 
-    if task_type == "GENERATE_SOCIAL_TEXT":
-        return execute_social_text_generation(payload)
-    
     if task_type == "GENERATE_SOCIAL_POST":
         return execute_social_post_generation(payload)
 

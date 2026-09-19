@@ -3,13 +3,10 @@
 
 from __future__ import annotations
 
-import json
 import logging
 import re
-from typing import Any
 
 from integrations.ollama import generate_text
-
 
 logger = logging.getLogger(__name__)
 
@@ -18,11 +15,6 @@ LANGUAGE_NAMES = {
     "en": "English",
 }
 
-EXPECTED_POSTS = {
-    1: "practical_value",
-    2: "data_insight",
-    3: "engagement_question",
-}
 
 CONTENT_LIMIT = 2500
 
@@ -126,161 +118,6 @@ def _strip_html_tags(text: str | None) -> str:
 
     return re.sub(r"<.*?>", "", text, flags=re.DOTALL).strip()
 
-
-def _extract_json_array(raw_text: str) -> list[dict[str, Any]] | None:
-    """Extract a JSON array even when the model wraps it in extra text."""
-    try:
-        parsed = json.loads(raw_text.strip())
-    except json.JSONDecodeError:
-        match = re.search(r"\[\s*\{.*\}\s*\]", raw_text, re.DOTALL)
-        if not match:
-            return None
-
-        try:
-            parsed = json.loads(match.group(0))
-        except json.JSONDecodeError:
-            return None
-
-    return parsed if isinstance(parsed, list) else None
-
-
-def _validate_generated_posts(posts: object) -> bool:
-    """Validate the expected three-post response structure."""
-    if not isinstance(posts, list) or len(posts) != 3:
-        return False
-
-    found_numbers: set[int] = set()
-
-    for post in posts:
-        if not isinstance(post, dict):
-            return False
-
-        number = post.get("variation_number")
-        angle = post.get("angle")
-        content = post.get("content", "").strip()
-
-        if number not in EXPECTED_POSTS:
-            return False
-
-        if number in found_numbers:
-            return False
-
-        if angle != EXPECTED_POSTS[number]:
-            return False
-
-        if not content:
-            return False
-
-        found_numbers.add(number)
-
-    return found_numbers == set(EXPECTED_POSTS)
-
-
-def generate_social_posts(
-    article_title: str,
-    article_content: str,
-    article_link: str,
-    platform: str,
-    language: str,
-) -> list[dict[str, Any]]:
-    """Generate three distinct social posts for an article and platform."""
-    platform_rules = _get_platform_instructions(platform)
-    language_rule = _get_language_instruction(language)
-    cleaned_content = _strip_html_tags(article_content)[:CONTENT_LIMIT]
-
-    system_prompt = f"""
-You are the social media copywriter for SmartCartLab.
-
-Read the supplied article and create exactly three distinct social media posts.
-
-{platform_rules}
-
-{language_rule}
-
-The three posts must use these different angles:
-
-1. Practical takeaway:
-   Explain one practical lesson or useful consequence from the article.
-
-2. Interesting technical insight:
-   Focus on a technical detail, common mistake, data point, or relevant
-   observation.
-
-3. Discussion or reflection:
-   Develop a thoughtful angle that may naturally encourage discussion.
-
-Do not produce three paraphrases of the same post.
-
-The article is already available online.
-Do not claim that it was published today.
-
-Return exclusively a valid JSON array containing exactly three objects.
-Do not include Markdown fences, introductory text, or explanations.
-
-Required JSON structure:
-
-[
-  {{
-    "variation_number": 1,
-    "angle": "practical_value",
-    "content": "Post text with [LINK] placeholder"
-  }},
-  {{
-    "variation_number": 2,
-    "angle": "data_insight",
-    "content": "Post text with [LINK] placeholder"
-  }},
-  {{
-    "variation_number": 3,
-    "angle": "engagement_question",
-    "content": "Post text with [LINK] placeholder"
-  }}
-]
-""".strip()
-
-    user_prompt = f"""
-Article title:
-{article_title}
-
-Article link:
-{article_link}
-
-Article content:
-{cleaned_content}
-
-Generate the three posts now.
-""".strip()
-
-    raw_response = generate_text(
-        system_prompt=system_prompt,
-        user_prompt=user_prompt,
-        temperature=0.6,
-        timeout=180,
-    )
-    if not raw_response:
-        return []
-
-    posts_data = _extract_json_array(raw_response)
-    if not _validate_generated_posts(posts_data):
-        logger.error("[%s] Invalid response returned by Gemma.", platform)
-        return []
-
-    formatted_posts = []
-    for item in posts_data:
-        formatted_posts.append(
-            {
-                "variation_number": item["variation_number"],
-                "angle": item["angle"],
-                "content": item["content"].replace("[LINK]", article_link),
-            }
-        )
-
-    logger.info(
-        "Generated %s post variations for %s.",
-        len(formatted_posts),
-        platform,
-    )
-    return formatted_posts
 
 
 def generate_social_post(
