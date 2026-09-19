@@ -83,17 +83,43 @@ def initialize_social_db():
 
         conn.execute(
             """
+            CREATE TABLE IF NOT EXISTS generated_images (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                article_id TEXT NOT NULL,
+                topic_id INTEGER NOT NULL,
+                prompt_id INTEGER NOT NULL,
+                provider TEXT NOT NULL,
+                model TEXT NOT NULL,
+                width INTEGER NOT NULL,
+                height INTEGER NOT NULL,
+                file_path TEXT NOT NULL,
+                created_at TEXT NOT NULL,
+                FOREIGN KEY (article_id)
+                    REFERENCES blog_articles(id)
+                    ON DELETE CASCADE,
+                FOREIGN KEY (topic_id)
+                    REFERENCES article_topics(id)
+                    ON DELETE CASCADE,
+                FOREIGN KEY (prompt_id)
+                    REFERENCES image_prompts(id)
+                    ON DELETE CASCADE
+            )
+            """
+        )
+
+        conn.execute(
+            """
             CREATE INDEX IF NOT EXISTS idx_social_posts_status_schedule
             ON social_posts (status, scheduled_at)
             """
         )
+
         conn.execute(
             """
             CREATE INDEX IF NOT EXISTS idx_social_posts_article_platform
             ON social_posts (article_id, platform)
             """
         )
-
 
         conn.execute(
             """
@@ -102,5 +128,10 @@ def initialize_social_db():
             """
         )
 
-
+        conn.execute(
+            """
+            CREATE INDEX IF NOT EXISTS idx_generated_images_prompt
+            ON generated_images (prompt_id)
+            """
+        )
 
