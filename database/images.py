@@ -88,3 +88,21 @@ def get_generated_images_by_prompt(
             """,
             (prompt_id,),
         ).fetchall()
+
+
+def generated_image_exists(prompt_id: int) -> bool:
+    """Return whether an image has already been generated for a prompt."""
+    with get_social_connection() as connection:
+        row = connection.execute(
+            """
+            SELECT 1
+            FROM generated_images
+            WHERE prompt_id = ?
+            LIMIT 1
+            """,
+            (prompt_id,),
+        ).fetchone()
+
+    return row is not None
+
+    

@@ -64,3 +64,9 @@ FACEBOOK_ACCESS_TOKEN  = os.getenv("FACEBOOK_ACCESS_TOKEN")
 
 # --- Dashboard params ---
 APP_TIMEZONE = "Europe/Rome"
+
+# --- Local Image generator ---
+LOCAL_IMAGE_GENERATOR_PATH = os.getenv(
+    "LOCAL_IMAGE_GENERATOR_PATH",
+    "/home/enzo/dev/image-generator/generate",
+)

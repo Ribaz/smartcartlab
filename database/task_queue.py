@@ -209,3 +209,20 @@ def has_active_task(
         ).fetchone()
 
     return row is not None
+
+
+def has_active_task_type(task_type: str) -> bool:
+    """Return whether an active task exists for the requested task type."""
+    with get_task_connection() as connection:
+        row = connection.execute(
+            """
+            SELECT 1
+            FROM task_queue
+            WHERE task_type = ?
+              AND status IN ('PENDING', 'RUNNING')
+            LIMIT 1
+            """,
+            (task_type,),
+        ).fetchone()
+
+    return row is not None

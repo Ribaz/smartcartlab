@@ -11,6 +11,7 @@ from database.task_queue import (
     mark_task_failed,
 )
 from tasks.article_topic_generation import execute_article_topic_generation
+from tasks.image_generation import execute_image_generation
 from tasks.image_prompt_generation import execute_image_prompt_generation
 from tasks.social_post_generation import execute_social_post_generation
 
@@ -37,6 +38,9 @@ def _execute_task(task: dict[str, Any]) -> dict[str, Any]:
     
     if task_type == "GENERATE_IMAGE_PROMPT":
         return execute_image_prompt_generation(payload)
+    
+    if task_type == "GENERATE_IMAGE":
+        return execute_image_generation(payload)
 
     raise ValueError(f"Unsupported task type: {task_type}")
 

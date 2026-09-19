@@ -77,3 +77,20 @@ def image_prompt_exists(topic_id: int) -> bool:
         ).fetchone()
 
     return row is not None
+
+
+def get_all_image_prompts() -> list[sqlite3.Row]:
+    """Return all image prompts ordered by ID."""
+    with get_social_connection() as connection:
+        return connection.execute(
+            """
+            SELECT
+                id,
+                article_id,
+                topic_id,
+                prompt,
+                created_at
+            FROM image_prompts
+            ORDER BY id
+            """
+        ).fetchall()
