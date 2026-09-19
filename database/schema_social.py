@@ -65,6 +65,24 @@ def initialize_social_db():
 
         conn.execute(
             """
+            CREATE TABLE IF NOT EXISTS image_prompts (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                article_id TEXT NOT NULL,
+                topic_id INTEGER NOT NULL,
+                prompt TEXT NOT NULL,
+                created_at TEXT NOT NULL,
+                FOREIGN KEY (article_id)
+                    REFERENCES blog_articles(id)
+                    ON DELETE CASCADE,
+                FOREIGN KEY (topic_id)
+                    REFERENCES article_topics(id)
+                    ON DELETE CASCADE
+            )
+            """
+        )
+
+        conn.execute(
+            """
             CREATE INDEX IF NOT EXISTS idx_social_posts_status_schedule
             ON social_posts (status, scheduled_at)
             """
@@ -77,7 +95,12 @@ def initialize_social_db():
         )
 
 
-
+        conn.execute(
+            """
+            CREATE UNIQUE INDEX IF NOT EXISTS idx_image_prompts_topic
+            ON image_prompts (topic_id)
+            """
+        )
 
 
 
