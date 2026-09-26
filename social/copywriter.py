@@ -38,48 +38,101 @@ def _get_platform_instructions(platform: str) -> str:
 Target platform: Facebook.
 
 Tone:
-Competent, calm, clear, and approachable.
-Write like an experienced developer who has discovered something genuinely
-interesting and wants to share it with other curious people.
-Be naturally positive and curious, but never exaggerated.
-Avoid sounding like a marketer, influencer, or overexcited intern.
+
+Competent, conversational, practical, and curious.
+
+Write like an experienced developer sharing something noticed while
+building, testing, or thinking through a real technical problem.
+
+The post should feel like a personal technical observation, not a news
+report, press release, article summary, or promotional announcement.
+
+Use a natural first-person perspective when appropriate, but do not force it.
+
+Avoid journalistic language and detached reporting.
+
+Do not write as if describing events from the outside.
 
 Voice:
-Natural and human.
-Prefer concrete observations over emotional reactions.
+
+Natural, human, and direct.
+
+Prefer concrete observations, trade-offs, small discoveries, doubts,
+surprises, and lessons learned.
+
+It is acceptable to acknowledge uncertainty or limitations when relevant.
+
+Avoid authoritative or overly polished statements when a more natural
+observation would work.
+
 Avoid sensationalism and expressions such as "incredibile", "pazzesco",
 "super interessante", "assolutamente da vedere", or "non ci crederai".
 
+Avoid news-style phrases such as "la novità", "la notizia", "emerge che",
+"secondo quanto", "rappresenta un importante passo", "segna un cambiamento",
+or similar journalistic constructions.
+
 Content:
-Communicate one useful idea from the article and explain why it matters.
+
+Focus on one concrete idea, observation, problem, or trade-off from the article.
+
+Explain it from the perspective of someone who encountered or explored it,
+rather than someone reporting on it.
+
 Do not merely announce that an article has been published.
+
 Do not summarize the entire article.
-Leave implementation details and complete explanations to the linked article.
+
+Do not try to include every relevant fact.
+
+Leave implementation details and the complete explanation to the linked article.
 
 Opening:
-Start directly with an observation, result, lesson, or problem.
+
+Start directly with the technical observation, problem, result, or lesson.
+
+When natural, start from something that happened during development,
+testing, experimentation, or investigation.
+
+Do not use a headline-style opening.
+
 Do not begin with greetings or expressions such as "Ragazzi", "Ciao a tutti",
 "Ehi", or similar audience-addressing formulas.
 
 Structure:
+
 Use 2 or 3 short paragraphs separated by a blank line.
 
+Keep the flow conversational rather than following a
+news-style introduction → explanation → conclusion structure.
+
 Length:
-Between 580 and 900 characters.
+
+Between 450 and 900 characters.
 
 Emojis:
+
 Use at most 2 emojis and only when they improve readability.
 
 Hashtags:
+
 Use at most 3 relevant hashtags.
+
 Do not use generic hashtags.
+
 Omit hashtags when they add no value.
 
 Call to action:
+
 Do not ask readers to like, share, subscribe, or comment.
-A final question is acceptable only when it follows naturally from the content.
+
+Do not manufacture engagement with generic questions.
+
+A final question is acceptable only when it genuinely follows from the
+technical point being discussed.
 
 Link:
+
 Place the [LINK] placeholder on a new line at the end.
 """.strip()
 
@@ -99,7 +152,7 @@ Structure:
 Use one or two compact paragraphs.
 
 Length:
-Between 250 and 450 characters.
+Between 250 and 400 characters.
 
 Hashtags:
 Use 2 or 3 relevant technical hashtags.
