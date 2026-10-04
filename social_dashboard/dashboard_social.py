@@ -1,11 +1,10 @@
-# dashboard_social.py
-# Local web dashboard for reviewing, scheduling, and publishing social content.
+# social_dashboard/dashboard_social.py
+# Operational dashboard for social content entities, relationships, review, and planning.
 
 from __future__ import annotations
 
 import logging
-from collections import OrderedDict
-from datetime import date, datetime, timedelta, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 from zoneinfo import ZoneInfo
@@ -16,10 +15,9 @@ from fastapi.templating import Jinja2Templates
 
 from config.settings import APP_TIMEZONE
 from database.articles import get_blog_article_by_id
+from database.connections import get_social_connection
 from database.posts import (
-    get_all_posts_with_articles,
     get_next_variation_number,
-    get_pending_posts_with_articles,
     get_social_post_by_id,
     insert_social_post,
     mark_post_as_published,
@@ -28,7 +26,7 @@ from database.posts import (
 )
 from integrations.facebook import post_to_facebook
 from integrations.mastodon import post_to_mastodon
-from social.copywriter import generate_custom_social_post, rewrite_social_post
+from social.copywriter import generate_custom_social_post, generate_social_post, rewrite_social_post
 from social.scheduling import process_scheduling
 
 logging.basicConfig(level=logging.INFO)
@@ -38,304 +36,357 @@ app = FastAPI(title="SmartCartLab Social Dashboard")
 BASE_DIR = Path(__file__).resolve().parent
 templates = Jinja2Templates(directory=str(BASE_DIR))
 
-TIMELINE_DAYS = 28
-TIMELINE_PAST_DAYS = 7
-ARTICLE_COLOR_COUNT = 8
-MAX_TIMELINE_DAYS = 90
-
 LOCAL_TIMEZONE = ZoneInfo(APP_TIMEZONE)
 UTC = timezone.utc
 
+ENTITY_TYPES = {
+    "articles": "Articles",
+    "topics": "Topics",
+    "posts": "Posts",
+    "prompts": "Image prompts",
+    "images": "Images",
+}
 
 
-def _parse_db_datetime(value: str | None) -> datetime | None:
+def _parse_datetime(value: str | None) -> datetime | None:
     if not value:
         return None
-
     normalized = str(value).strip()
-
     if normalized.endswith("Z"):
         normalized = normalized[:-1] + "+00:00"
-
     try:
         parsed = datetime.fromisoformat(normalized)
     except ValueError:
         return None
-
     if parsed.tzinfo is None:
         parsed = parsed.replace(tzinfo=UTC)
-
     return parsed.astimezone(LOCAL_TIMEZONE)
 
 
-def _format_local_datetime(value: str | None) -> str:
-    """Format a stored UTC timestamp for display in the local timezone."""
-    parsed = _parse_db_datetime(value)
+def _display_datetime(value: str | None) -> str:
+    parsed = _parse_datetime(value)
     return parsed.strftime("%d/%m/%Y %H:%M") if parsed else ""
 
 
-def _format_local_datetime_for_form(value: str | None) -> str:
-    """Format a stored UTC timestamp for an HTML datetime-local input."""
-    parsed = _parse_db_datetime(value)
+def _form_datetime(value: str | None) -> str:
+    parsed = _parse_datetime(value)
     return parsed.strftime("%Y-%m-%dT%H:%M") if parsed else ""
 
 
-def _as_dict(row: Any) -> dict[str, Any]:
-    """Convert a database row and add local-time values used by the dashboard."""
-    post = dict(row)
-    post["scheduled_at_display"] = _format_local_datetime(post.get("scheduled_at"))
-    post["published_at_display"] = _format_local_datetime(post.get("published_at"))
-    post["scheduled_at_form"] = _format_local_datetime_for_form(
-        post.get("scheduled_at")
-    )
+def _rows(sql: str, params: tuple[Any, ...] = ()) -> list[dict[str, Any]]:
+    with get_social_connection() as connection:
+        return [dict(row) for row in connection.execute(sql, params).fetchall()]
+
+
+def _row(sql: str, params: tuple[Any, ...] = ()) -> dict[str, Any] | None:
+    with get_social_connection() as connection:
+        row = connection.execute(sql, params).fetchone()
+    return dict(row) if row else None
+
+
+def _decorate_post(post: dict[str, Any]) -> dict[str, Any]:
+    post["scheduled_at_display"] = _display_datetime(post.get("scheduled_at"))
+    post["published_at_display"] = _display_datetime(post.get("published_at"))
+    post["scheduled_at_form"] = _form_datetime(post.get("scheduled_at"))
     return post
 
 
-def _event_datetime(post: dict[str, Any]) -> datetime | None:
-    """
-    Return the timestamp that should position the post on the timeline.
+def _load_entities(entity: str, search: str = "") -> tuple[list[str], list[dict[str, Any]]]:
+    if entity not in ENTITY_TYPES:
+        entity = "articles"
 
-    Published posts use their actual publication time. Approved posts use their
-    planned schedule. Pending and rejected posts remain outside the dated grid.
-    """
-    if post["status"] == "PUBLISHED":
-        return _parse_db_datetime(post.get("published_at")) or _parse_db_datetime(
-            post.get("scheduled_at")
+    term = f"%{search.strip()}%"
+
+    if entity == "articles":
+        rows = _rows(
+            """
+            SELECT
+                a.id,
+                a.title,
+                a.slug,
+                a.link,
+                a.pub_date,
+                a.lang,
+                a.processing_status,
+                a.created_at,
+                (SELECT COUNT(*) FROM article_topics t WHERE t.article_id = a.id) AS topic_count,
+                (SELECT COUNT(*) FROM social_posts p WHERE p.article_id = a.id) AS post_count,
+                (SELECT COUNT(*) FROM image_prompts ip WHERE ip.article_id = a.id) AS prompt_count
+            FROM blog_articles a
+            WHERE a.title LIKE ? OR a.id LIKE ? OR a.slug LIKE ?
+            ORDER BY COALESCE(a.pub_date, a.created_at) DESC
+            """,
+            (term, term, term),
         )
-    if post["status"] == "APPROVED":
-        return _parse_db_datetime(post.get("scheduled_at"))
-    return None
+        columns = ["id", "title", "pub_date", "topics", "posts", "prompts"]
+        for row in rows:
+            row["pub_date_display"] = _display_datetime(row.get("pub_date"))
+        return columns, rows
 
-
-
-def _resolve_window(start: str | None, end: str | None, today: date) -> tuple[date, date, bool]:
-    """Resolve the requested timeline period and identify the default operational view."""
-    default_start = today - timedelta(days=TIMELINE_PAST_DAYS)
-    default_end = default_start + timedelta(days=TIMELINE_DAYS - 1)
-
-    if not start and not end:
-        return default_start, default_end, True
-
-    try:
-        window_start = date.fromisoformat(start) if start else default_start
-        window_end = (
-            date.fromisoformat(end)
-            if end
-            else window_start + timedelta(days=TIMELINE_DAYS - 1)
+    if entity == "topics":
+        rows = _rows(
+            """
+            SELECT
+                t.id,
+                t.article_id,
+                a.title AS article_title,
+                t.topic,
+                t.created_at,
+                (SELECT COUNT(*) FROM social_posts p WHERE p.topic_id = t.id) AS post_count,
+                (SELECT COUNT(*) FROM image_prompts ip WHERE ip.topic_id = t.id) AS prompt_count,
+                (SELECT COUNT(*) FROM image_prompts ip JOIN generated_images gi ON gi.prompt_id = ip.id WHERE ip.topic_id = t.id) AS image_count
+            FROM article_topics t
+            JOIN blog_articles a ON a.id = t.article_id
+            WHERE t.topic LIKE ? OR a.title LIKE ?
+            ORDER BY t.id DESC
+            """,
+            (term, term),
         )
-    except ValueError:
-        return default_start, default_end, True
+        return ["id", "article_title", "topic", "posts", "prompts", "images"], rows
 
-    if window_end < window_start:
-        window_start, window_end = window_end, window_start
-
-    # Keep an accidental huge range from rendering thousands of grid columns.
-    if (window_end - window_start).days + 1 > MAX_TIMELINE_DAYS:
-        window_end = window_start + timedelta(days=MAX_TIMELINE_DAYS - 1)
-
-    is_default = window_start == default_start and window_end == default_end
-    return window_start, window_end, is_default
-
-
-def _filter_timeline_rows(
-    rows: list[Any],
-    window_start: date,
-    window_end: date,
-    include_undated_operational: bool,
-) -> list[Any]:
-    """Keep complete article groups only when they have activity in the selected period."""
-    visible_article_ids: set[str] = set()
-
-    for raw_row in rows:
-        post = _as_dict(raw_row)
-        event_dt = _event_datetime(post)
-        has_dated_activity = bool(
-            event_dt and window_start <= event_dt.date() <= window_end
+    if entity == "posts":
+        rows = _rows(
+            """
+            SELECT
+                p.id,
+                p.article_id,
+                a.title AS article_title,
+                p.topic_id,
+                t.topic,
+                p.platform,
+                p.variation_number,
+                p.status,
+                p.content,
+                p.media_url,
+                p.scheduled_at,
+                p.published_at,
+                p.created_at,
+                p.updated_at
+            FROM social_posts p
+            JOIN blog_articles a ON a.id = p.article_id
+            LEFT JOIN article_topics t ON t.id = p.topic_id
+            WHERE p.content LIKE ? OR a.title LIKE ? OR COALESCE(t.topic, '') LIKE ? OR p.platform LIKE ?
+            ORDER BY p.created_at DESC, p.id DESC
+            """,
+            (term, term, term, term),
         )
-        is_undated_operational = include_undated_operational and (
-            post.get("status") == "PENDING"
-            or (post.get("status") == "APPROVED" and not post.get("scheduled_at"))
+        for row in rows:
+            _decorate_post(row)
+        return ["id", "platform", "article_title", "topic", "status", "scheduled_at", "content"], rows
+
+    if entity == "prompts":
+        rows = _rows(
+            """
+            SELECT
+                ip.id,
+                ip.article_id,
+                a.title AS article_title,
+                ip.topic_id,
+                t.topic,
+                ip.prompt,
+                ip.created_at,
+                (SELECT COUNT(*) FROM generated_images gi WHERE gi.prompt_id = ip.id) AS image_count
+            FROM image_prompts ip
+            JOIN blog_articles a ON a.id = ip.article_id
+            JOIN article_topics t ON t.id = ip.topic_id
+            WHERE ip.prompt LIKE ? OR a.title LIKE ? OR t.topic LIKE ?
+            ORDER BY ip.created_at DESC, ip.id DESC
+            """,
+            (term, term, term),
         )
+        return ["id", "article_title", "topic", "image_count", "created_at", "prompt"], rows
 
-        if has_dated_activity or is_undated_operational:
-            visible_article_ids.add(str(post["article_id"]))
+    rows = _rows(
+        """
+        SELECT
+            gi.id,
+            gi.article_id,
+            a.title AS article_title,
+            gi.topic_id,
+            t.topic,
+            gi.prompt_id,
+            ip.prompt,
+            gi.provider,
+            gi.model,
+            gi.width,
+            gi.height,
+            gi.file_path,
+            gi.created_at
+        FROM generated_images gi
+        JOIN blog_articles a ON a.id = gi.article_id
+        JOIN article_topics t ON t.id = gi.topic_id
+        JOIN image_prompts ip ON ip.id = gi.prompt_id
+        WHERE a.title LIKE ? OR t.topic LIKE ? OR ip.prompt LIKE ? OR gi.file_path LIKE ?
+        ORDER BY gi.created_at DESC, gi.id DESC
+        """,
+        (term, term, term, term),
+    )
+    return ["id", "article_title", "topic", "prompt_id", "provider", "model", "size", "file_path", "created_at"], rows
 
-    return [
-        row for row in rows
-        if str(row["article_id"]) in visible_article_ids
-    ]
 
-def _build_timeline(
-    rows: list[Any],
-    window_start: date,
-    window_end: date,
-) -> tuple[list[date], list[dict[str, Any]]]:
-    """Group social posts by article and prepare a date-indexed timeline."""
-    window_days = (window_end - window_start).days + 1
-    days = [window_start + timedelta(days=offset) for offset in range(window_days)]
-    articles: OrderedDict[str, dict[str, Any]] = OrderedDict()
+def _load_article_map() -> list[dict[str, Any]]:
+    return _rows(
+        """
+        SELECT id, title, pub_date
+        FROM blog_articles
+        ORDER BY COALESCE(pub_date, created_at) DESC
+        """
+    )
 
-    for raw_row in rows:
-        post = _as_dict(raw_row)
-        article_id = str(post["article_id"])
-        article_pub_dt = _parse_db_datetime(post.get("article_pub_date"))
 
-        if article_id not in articles:
-            articles[article_id] = {
-                "id": article_id,
-                "title": post.get("article_title") or f"Article {article_id}",
-                "link": post.get("article_link"),
-                "pub_date": post.get("article_pub_date"),
-                "pub_date_raw": post.get("article_pub_date"),
-                "pub_date_day": article_pub_dt.date().isoformat() if article_pub_dt else None,
-                "pub_date_time": article_pub_dt.strftime("%H:%M") if article_pub_dt else None,
-                "media_url": post.get("article_media_url") or post.get("media_url"),
-                "color_index": len(articles) % ARTICLE_COLOR_COUNT,
-                "posts": [],
-                "posts_by_day": {day.isoformat(): [] for day in days},
-                "pending": [],
-                "unscheduled": [],
-                "rejected": [],
-                "outside_window": [],
-                "counts": {
-                    "PENDING": 0,
-                    "APPROVED": 0,
-                    "PUBLISHED": 0,
-                    "REJECTED": 0,
-                },
+def _load_article_graph(article_id: str | None) -> dict[str, Any] | None:
+    if not article_id:
+        articles = _load_article_map()
+        if not articles:
+            return None
+        article_id = str(articles[0]["id"])
+
+    article = _row("SELECT * FROM blog_articles WHERE id = ?", (article_id,))
+    if not article:
+        return None
+
+    topics = _rows(
+        "SELECT * FROM article_topics WHERE article_id = ? ORDER BY id",
+        (article_id,),
+    )
+    posts = _rows(
+        """
+        SELECT p.*, t.topic
+        FROM social_posts p
+        LEFT JOIN article_topics t ON t.id = p.topic_id
+        WHERE p.article_id = ?
+        ORDER BY p.topic_id IS NULL, p.topic_id, p.platform, p.id
+        """,
+        (article_id,),
+    )
+    prompts = _rows(
+        """
+        SELECT ip.*, t.topic
+        FROM image_prompts ip
+        JOIN article_topics t ON t.id = ip.topic_id
+        WHERE ip.article_id = ?
+        ORDER BY ip.topic_id
+        """,
+        (article_id,),
+    )
+    images = _rows(
+        """
+        SELECT gi.*, ip.prompt
+        FROM generated_images gi
+        JOIN image_prompts ip ON ip.id = gi.prompt_id
+        WHERE gi.article_id = ?
+        ORDER BY gi.topic_id, gi.prompt_id, gi.id
+        """,
+        (article_id,),
+    )
+
+    for post in posts:
+        _decorate_post(post)
+
+    prompt_by_topic: dict[int, dict[str, Any]] = {int(p["topic_id"]): p for p in prompts}
+    images_by_prompt: dict[int, list[dict[str, Any]]] = {}
+    for image in images:
+        images_by_prompt.setdefault(int(image["prompt_id"]), []).append(image)
+
+    topic_nodes = []
+    topic_ids = {int(topic["id"]) for topic in topics}
+    for topic in topics:
+        topic_id = int(topic["id"])
+        topic_posts = [p for p in posts if p.get("topic_id") == topic_id]
+        prompt = prompt_by_topic.get(topic_id)
+        prompt_images = images_by_prompt.get(int(prompt["id"]), []) if prompt else []
+        topic_nodes.append(
+            {
+                "topic": topic,
+                "posts": topic_posts,
+                "prompt": prompt,
+                "images": prompt_images,
             }
-
-        article = articles[article_id]
-        article["posts"].append(post)
-        article["counts"][post["status"]] = article["counts"].get(post["status"], 0) + 1
-
-        event_dt = _event_datetime(post)
-        post["event_at"] = event_dt
-        post["event_time"] = event_dt.strftime("%H:%M") if event_dt else None
-        post["event_date"] = event_dt.date().isoformat() if event_dt else None
-
-        if post["status"] == "PENDING":
-            article["pending"].append(post)
-        elif post["status"] == "REJECTED":
-            article["rejected"].append(post)
-        elif event_dt is None:
-            article["unscheduled"].append(post)
-        elif window_start <= event_dt.date() <= window_end:
-            article["posts_by_day"][event_dt.date().isoformat()].append(post)
-        else:
-            article["outside_window"].append(post)
-
-    for article in articles.values():
-        article["is_inactive"] = (
-            article["counts"]["PENDING"] == 0
-            and article["counts"]["APPROVED"] == 0
         )
 
-        for posts in article["posts_by_day"].values():
-            posts.sort(
-                key=lambda post: (
-                    post.get("event_at") or datetime.max.replace(tzinfo=LOCAL_TIMEZONE),
-                    post.get("id", 0),
-                )
-            )
+    direct_posts = [p for p in posts if p.get("topic_id") is None or int(p.get("topic_id")) not in topic_ids]
 
-    # Most recently published articles first. Unknown dates fall to the bottom.
-    def article_sort_key(article: dict[str, Any]) -> tuple[int, str]:
-        parsed = _parse_db_datetime(article.get("pub_date"))
-        if parsed:
-            return (0, parsed.isoformat())
-        return (1, article["id"])
-
-    grouped = sorted(articles.values(), key=article_sort_key, reverse=True)
-    return days, grouped
-
-
-# ---------------------------------------------------------------------------
-# Dashboard main route
-# ---------------------------------------------------------------------------
+    return {
+        "article": article,
+        "topics": topic_nodes,
+        "direct_posts": direct_posts,
+        "all_posts": posts,
+        "all_prompts": prompts,
+        "all_images": images,
+    }
 
 
 @app.get("/")
 def render_dashboard(
     request: Request,
+    tab: str = Query(default="entities"),
+    entity: str = Query(default="articles"),
+    search: str = Query(default=""),
+    article_id: str | None = Query(default=None),
+    selected_articles: list[str] = Query(default=[]),
     start: str | None = Query(default=None),
     end: str | None = Query(default=None),
-    post_created: bool = Query(default=False),
-    post_error: str | None = Query(default=None),
+    platform: str = Query(default="all"),
 ):
+    if tab not in {"entities", "graph", "review", "calendar"}:
+        tab = "entities"
+
+    entity_columns, entity_rows = _load_entities(entity, search)
+    articles = _load_article_map()
+    graph = _load_article_graph(article_id) if tab == "graph" else None
+
+    posts = _load_entities("posts")[1]
+    review_posts = [p for p in posts if p.get("status") in {"PENDING", "APPROVED", "REJECTED"}]
+
+    if platform != "all":
+        review_posts = [p for p in review_posts if p.get("platform") == platform]
+
+    calendar_start = _parse_datetime(start) if start else None
+    calendar_end = _parse_datetime(end) if end else None
     today = datetime.now(LOCAL_TIMEZONE).date()
-    window_start, window_end, is_default_window = _resolve_window(start, end, today)
+    window_start = calendar_start.date() if calendar_start else today - timedelta(days=7)
+    window_end = calendar_end.date() if calendar_end else window_start + timedelta(days=27)
+    if window_end < window_start:
+        window_start, window_end = window_end, window_start
+    if (window_end - window_start).days > 90:
+        window_end = window_start + timedelta(days=90)
 
-    pending = [
-        _as_dict(row)
-        for row in get_pending_posts_with_articles()
-    ]
-    all_posts = [
-        _as_dict(row)
-        for row in get_all_posts_with_articles()
-    ]
+    selected = {str(value) for value in selected_articles}
+    calendar_posts = posts
+    if selected:
+        calendar_posts = [p for p in calendar_posts if str(p["article_id"]) in selected]
+    if platform != "all":
+        calendar_posts = [p for p in calendar_posts if p.get("platform") == platform]
 
-    timeline_rows = _filter_timeline_rows(
-        rows=all_posts,
-        window_start=window_start,
-        window_end=window_end,
-        include_undated_operational=is_default_window,
-    )
-    timeline_days, article_groups = _build_timeline(
-        rows=timeline_rows,
-        window_start=window_start,
-        window_end=window_end,
-    )
-
-    window_length = (window_end - window_start).days + 1
-    previous_start = window_start - timedelta(days=window_length)
-    previous_end = window_end - timedelta(days=window_length)
-    next_start = window_start + timedelta(days=window_length)
-    next_end = window_end + timedelta(days=window_length)
-    today_start = today - timedelta(days=TIMELINE_PAST_DAYS)
-    today_end = today_start + timedelta(days=TIMELINE_DAYS - 1)
-
-    platforms = sorted({row["platform"] for row in all_posts})
-    articles = sorted(
-        {
-            (str(row["article_id"]), row["article_title"] or str(row["article_id"]))
-            for row in all_posts
-        },
-        key=lambda item: item[1].lower(),
-    )
+    calendar_articles = [a for a in articles if not selected or str(a["id"]) in selected]
+    days = [window_start + timedelta(days=i) for i in range((window_end - window_start).days + 1)]
 
     response = templates.TemplateResponse(
         request=request,
         name="dashboard_social.html",
         context={
-            "pending_posts": pending,
-            "all_posts": all_posts,
-            "article_groups": article_groups,
-            "timeline_days": timeline_days,
+            "tab": tab,
+            "entity": entity,
+            "entity_types": ENTITY_TYPES,
+            "entity_columns": entity_columns,
+            "entity_rows": entity_rows,
+            "search": search,
+            "articles": articles,
+            "graph": graph,
+            "review_posts": review_posts,
+            "platforms": sorted({str(p["platform"]) for p in posts}),
+            "platform": platform,
+            "selected_articles": selected,
+            "calendar_articles": calendar_articles,
+            "calendar_posts": calendar_posts,
+            "calendar_days": days,
             "window_start": window_start,
             "window_end": window_end,
-            "previous_start": previous_start.isoformat(),
-            "previous_end": previous_end.isoformat(),
-            "next_start": next_start.isoformat(),
-            "next_end": next_end.isoformat(),
-            "today_start": today_start.isoformat(),
-            "today_end": today_end.isoformat(),
             "today": today,
-            "platforms": platforms,
-            "articles": articles,
-            "is_default_window": is_default_window,
-            "post_created": post_created,
-            "post_error": post_error,
         },
     )
     response.headers["Cache-Control"] = "no-store, max-age=0"
     return response
-
-
-# ---------------------------------------------------------------------------
-# Post action endpoints
-# ---------------------------------------------------------------------------
-
 
 
 @app.post("/posts/create")
@@ -345,27 +396,17 @@ def create_custom_post(
     prompt: str = Form(""),
     content: str = Form(""),
 ):
-    """Create a PENDING post manually or generate it from a custom Gemma prompt."""
     article = get_blog_article_by_id(article_id)
     if not article:
-        logger.warning("Cannot create a post for missing article %s.", article_id)
-        return RedirectResponse(
-            url="/?post_error=article-not-found#timeline",
-            status_code=303,
-        )
+        return RedirectResponse(url="/?tab=review&error=article-not-found", status_code=303)
 
     article_data = dict(article)
     platform = platform.strip().lower()
+    if platform not in {"facebook", "mastodon"}:
+        return RedirectResponse(url="/?tab=review&error=unsupported-platform", status_code=303)
+
     manual_content = content.strip()
     custom_prompt = prompt.strip()
-
-    if platform not in {"facebook", "mastodon"}:
-        logger.warning("Unsupported platform '%s' for custom post creation.", platform)
-        return RedirectResponse(
-            url="/?post_error=unsupported-platform#timeline",
-            status_code=303,
-        )
-
     if manual_content:
         post_content = manual_content
     elif custom_prompt:
@@ -377,154 +418,152 @@ def create_custom_post(
             user_prompt=custom_prompt,
             language=article_data.get("lang") or "it",
         )
-        if not post_content:
-            logger.error(
-                "Gemma failed to generate a custom %s post for article %s.",
-                platform,
-                article_id,
-            )
-            return RedirectResponse(
-                url="/?post_error=generation-failed#timeline",
-                status_code=303,
-            )
     else:
-        logger.warning(
-            "Custom post creation requested without content or prompt for article %s.",
-            article_id,
-        )
-        return RedirectResponse(
-            url="/?post_error=missing-content#timeline",
-            status_code=303,
-        )
+        post_content = None
 
-    variation_number = get_next_variation_number(article_id, platform)
+    if not post_content:
+        return RedirectResponse(url="/?tab=review&error=generation-failed", status_code=303)
+
     post_id = insert_social_post(
         article_id=article_id,
         platform=platform,
         content=post_content,
-        variation_number=variation_number,
-        media_url=article_data.get("media_url"),
+        variation_number=get_next_variation_number(article_id, platform),
+        media_url=None,
     )
-
-    logger.info(
-        "Created custom PENDING post #%s for article %s on %s.",
-        post_id,
-        article_id,
-        platform,
-    )
-    return RedirectResponse(url="/?post_created=1#review", status_code=303)
+    logger.info("Created custom PENDING post #%s for article %s.", post_id, article_id)
+    return RedirectResponse(url="/?tab=review&saved=1", status_code=303)
 
 
 @app.post("/posts/{post_id}/approve")
 def approve_post(post_id: int):
-    # Approval and scheduling intentionally remain separate responsibilities.
     update_social_post_status(post_id, status="APPROVED")
-    logger.info("Post #%s approved via web dashboard.", post_id)
-    return RedirectResponse(url="/", status_code=303)
+    return RedirectResponse(url="/?tab=review", status_code=303)
 
 
 @app.post("/posts/{post_id}/reject")
 def reject_post(post_id: int):
     update_social_post_status(post_id, status="REJECTED")
-    logger.info("Post #%s rejected via web dashboard.", post_id)
-    return RedirectResponse(url="/", status_code=303)
+    return RedirectResponse(url="/?tab=review", status_code=303)
 
 
 @app.post("/posts/{post_id}/restore")
 def restore_rejected_post(post_id: int):
-    """Administrative escape hatch: return a rejected post to human review."""
     update_social_post_status(post_id, status="PENDING")
-    logger.info("Rejected post #%s restored to PENDING.", post_id)
-    return RedirectResponse(url="/#all-posts", status_code=303)
-
-
-@app.post("/posts/{post_id}/cancel")
-def cancel_scheduled_post(post_id: int):
-    """Return an approved post to the review queue and clear its schedule."""
-    update_social_post_status(
-        post_id,
-        status="PENDING",
-        clear_schedule=True,
-    )
-    logger.info("Post #%s returned to PENDING and unscheduled.", post_id)
-    return RedirectResponse(url="/#all-posts", status_code=303)
+    return RedirectResponse(url="/?tab=review", status_code=303)
 
 
 @app.post("/posts/{post_id}/update")
 def update_post_content(post_id: int, content: str = Form(...)):
     update_social_post_status(post_id, status="PENDING", content=content)
-    logger.info("Post #%s content updated.", post_id)
-    return RedirectResponse(url="/", status_code=303)
+    return RedirectResponse(url="/?tab=review", status_code=303)
+
+
+@app.post("/posts/{post_id}/regenerate-topic")
+def regenerate_post_from_topic(post_id: int):
+    post = get_social_post_by_id(post_id)
+    if not post:
+        return RedirectResponse(url="/?tab=review", status_code=303)
+
+    data = dict(post)
+    topic_id = data.get("topic_id")
+    if not topic_id:
+        return RedirectResponse(url="/?tab=review&error=no-topic", status_code=303)
+
+    topic_row = _row("SELECT * FROM article_topics WHERE id = ?", (topic_id,))
+    article = get_blog_article_by_id(str(data["article_id"]))
+    if not topic_row or not article:
+        return RedirectResponse(url="/?tab=review&error=topic-context-missing", status_code=303)
+
+    article_data = dict(article)
+    generated = generate_social_post(
+        article_title=article_data["title"],
+        article_content=article_data["content"],
+        article_link=article_data["link"],
+        topic=topic_row["topic"],
+        platform=data["platform"],
+        language=article_data.get("lang") or "it",
+    )
+    update_social_post_status(
+        post_id,
+        status="PENDING",
+        content=generated["content"],
+    )
+    return RedirectResponse(url="/?tab=review&saved=1", status_code=303)
+
+
+@app.post("/posts/{post_id}/regenerate-custom")
+def regenerate_post_with_prompt(post_id: int, prompt: str = Form(...)):
+    post = get_social_post_by_id(post_id)
+    if not post:
+        return RedirectResponse(url="/?tab=review", status_code=303)
+
+    article = get_blog_article_by_id(str(post["article_id"]))
+    if not article or not prompt.strip():
+        return RedirectResponse(url="/?tab=review&error=missing-context", status_code=303)
+
+    article_data = dict(article)
+    generated = generate_custom_social_post(
+        article_title=article_data["title"],
+        article_content=article_data["content"],
+        article_link=article_data["link"],
+        platform=post["platform"],
+        user_prompt=prompt.strip(),
+        language=article_data.get("lang") or "it",
+    )
+    if not generated:
+        return RedirectResponse(url="/?tab=review&error=generation-failed", status_code=303)
+
+    update_social_post_status(post_id, status="PENDING", content=generated)
+    return RedirectResponse(url="/?tab=review&saved=1", status_code=303)
 
 
 @app.post("/posts/{post_id}/rewrite")
 def rewrite_post(post_id: int):
     post = get_social_post_by_id(post_id)
-    if not post:
-        logger.warning("Cannot rewrite missing post #%s.", post_id)
-        return RedirectResponse(url="/", status_code=303)
+    if post:
+        data = dict(post)
+        new_content = rewrite_social_post(data.get("content", ""), data.get("platform", "mastodon"))
+        if new_content:
+            update_social_post_status(post_id, status="PENDING", content=new_content)
+    return RedirectResponse(url="/?tab=review", status_code=303)
 
-    post_dict = dict(post)
-    platform = post_dict.get("platform")
-    current_content = post_dict.get("content")
 
-    new_content = rewrite_social_post(current_content, platform)
-    if new_content:
-        update_social_post_status(post_id, status="PENDING", content=new_content)
-        logger.info("Post #%s successfully rewritten by AI.", post_id)
-    else:
-        logger.error("AI rewrite failed for post #%s.", post_id)
+@app.post("/posts/{post_id}/reschedule")
+def reschedule_post(post_id: int, scheduled_at: str = Form(...)):
+    update_post_schedule_date(post_id, scheduled_at)
+    return RedirectResponse(url="/?tab=calendar", status_code=303)
 
-    return RedirectResponse(url="/", status_code=303)
+
+@app.post("/posts/schedule-approved")
+def schedule_approved_posts():
+    for platform_name in ("mastodon", "facebook"):
+        process_scheduling(platform=platform_name)
+    return RedirectResponse(url="/?tab=calendar", status_code=303)
 
 
 @app.post("/posts/{post_id}/publish-now")
 def publish_post_now(post_id: int):
     post = get_social_post_by_id(post_id)
     if not post:
-        logger.warning("Cannot publish missing post #%s.", post_id)
-        return RedirectResponse(url="/#all-posts", status_code=303)
+        return RedirectResponse(url="/?tab=review", status_code=303)
 
-    post_dict = dict(post)
-    platform = post_dict.get("platform", "").lower()
-    content = post_dict.get("content", "")
-    media_url = post_dict.get("media_url")
-
+    data = dict(post)
+    platform_name = str(data.get("platform", "")).lower()
+    content = data.get("content", "")
+    media_url = data.get("media_url")
     success = False
-    if platform == "facebook":
-        # Keep the integration call compatible with the existing dashboard.
+
+    if platform_name == "facebook":
         success = post_to_facebook(content)
-    elif platform == "mastodon":
-        media_ids = [media_url] if media_url else None
-        result = post_to_mastodon(content, media_ids=media_ids)
+    elif platform_name == "mastodon":
+        result = post_to_mastodon(content, media_ids=[media_url] if media_url else None)
         success = result is not None
-    else:
-        logger.warning("Unsupported platform '%s' for post #%s.", platform, post_id)
 
     if success:
         mark_post_as_published(post_id)
-        logger.info("Post #%s successfully published immediately to %s.", post_id, platform)
-    else:
-        logger.error("Failed to immediately publish post #%s to %s.", post_id, platform)
 
-    return RedirectResponse(url="/#all-posts", status_code=303)
-
-
-@app.post("/posts/{post_id}/reschedule")
-def reschedule_post(post_id: int, scheduled_at: str = Form(...)):
-    update_post_schedule_date(post_id, scheduled_at)
-    logger.info("Post #%s scheduled for %s.", post_id, scheduled_at)
-    return RedirectResponse(url="/#timeline", status_code=303)
-
-
-@app.post("/posts/schedule-approved")
-def schedule_approved_posts():
-    for platform in ("mastodon", "facebook"):
-        process_scheduling(platform=platform)
-
-    logger.info("All APPROVED unscheduled posts scheduled via dashboard.")
-    return RedirectResponse(url="/#timeline", status_code=303)
-    
+    return RedirectResponse(url="/?tab=review", status_code=303)
 
 
 if __name__ == "__main__":

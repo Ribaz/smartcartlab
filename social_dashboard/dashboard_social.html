@@ -1,1075 +1,422 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="it">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SmartCartLab - Social Dashboard</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>SmartCartLab · Social Dashboard</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <style>
         :root {
-            --surface: #ffffff;
-            --surface-subtle: #f8f9fa;
             --border: #dee2e6;
-            --text-muted: #6c757d;
-            --timeline-day-width: 118px;
+            --muted: #6c757d;
+            --surface: #fff;
+            --subtle: #f8f9fa;
         }
-
-        body {
-            min-height: 100vh;
-        }
-
-        .dashboard-shell {
-            max-width: 1680px;
-        }
-
-        .section-heading {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            gap: 1rem;
-            margin-bottom: 1rem;
-        }
-
-        .eyebrow {
-            color: var(--text-muted);
-            font-size: .75rem;
-            font-weight: 700;
-            letter-spacing: .08em;
-            text-transform: uppercase;
-        }
-
-        .article-context {
-            color: inherit;
-            text-decoration: none;
-        }
-
-        .article-context:hover {
-            text-decoration: underline;
-        }
-
-        .review-card textarea {
-            min-height: 132px;
-            resize: vertical;
-        }
-
-        .review-card .card-header {
-            min-height: 78px;
-        }
-
-        .platform-badge[data-platform="mastodon"] {
-            background: #6366f1;
-        }
-
-        .platform-badge[data-platform="facebook"] {
-            background: #0d6efd;
-        }
-
-        .platform-badge[data-platform="instagram"] {
-            background: #d63384;
-        }
-
-        .platform-badge[data-platform="linkedin"] {
-            background: #0a66c2;
-        }
-
-        .timeline-frame {
-            border: 1px solid var(--border);
-            border-radius: .75rem;
-            background: var(--surface);
-            overflow: hidden;
-        }
-
-        .timeline-scroll {
-            overflow-x: auto;
-        }
-
-        .timeline-grid {
-            display: grid;
-            grid-template-columns: 300px repeat(28, var(--timeline-day-width));
-            min-width: max-content;
-        }
-
-        .timeline-header {
-            position: sticky;
-            top: 0;
-            z-index: 4;
-            background: var(--surface-subtle);
-            border-bottom: 1px solid var(--border);
-        }
-
-        .timeline-corner,
-        .timeline-day,
-        .timeline-article,
-        .timeline-cell {
-            border-right: 1px solid var(--border);
-            border-bottom: 1px solid var(--border);
-        }
-
-        .timeline-corner {
-            position: sticky;
-            left: 0;
-            z-index: 6;
-            padding: .9rem 1rem;
-            background: var(--surface-subtle);
-            font-weight: 700;
-        }
-
-        .timeline-day {
-            padding: .65rem .5rem;
-            text-align: center;
-            background: var(--surface-subtle);
-        }
-
-        .timeline-day.is-today {
-            background: #fff3cd;
-        }
-
-        .timeline-article {
-            position: sticky;
-            left: 0;
-            z-index: 3;
-            padding: 1rem;
-            background: var(--surface);
-            border-left: 6px solid var(--article-color);
-        }
-
-        .timeline-grid.is-inactive .timeline-article {
-            opacity: .5;
-        }
-
-        .timeline-cell {
-            min-height: 150px;
-            padding: .45rem;
-            background: color-mix(in srgb, var(--article-color), #fff 96%);
-        }
-
-        .timeline-cell.is-today {
-            background: color-mix(in srgb, var(--article-color), #fff3cd 92%);
-        }
-
-        .timeline-cell.is-drop-target {
-            outline: 3px solid color-mix(in srgb, var(--article-color), #000 8%);
-            outline-offset: -3px;
-            background: color-mix(in srgb, var(--article-color), #fff 86%);
-        }
-
-        .timeline-cell.is-drop-invalid {
-            outline: 2px dashed #dc3545;
-            outline-offset: -2px;
-        }
-
-        .timeline-event {
-            display: block;
-            border: 1px solid color-mix(in srgb, var(--article-color), #000 16%);
-            border-left: 4px solid var(--article-color);
-            border-radius: .5rem;
-            background: color-mix(in srgb, var(--article-color), #fff 84%);
-            padding: .45rem .5rem;
-            margin-bottom: .4rem;
-            color: #212529;
-            font-size: .78rem;
-            line-height: 1.25;
-            text-decoration: none;
-        }
-
-        .timeline-event[draggable="true"] {
-            cursor: grab;
-        }
-
-        .timeline-event[draggable="true"]:active {
-            cursor: grabbing;
-        }
-
-        .timeline-event.is-dragging {
-            opacity: .45;
-            transform: scale(.98);
-        }
-
-        .timeline-event.published {
-            opacity: .68;
-        }
-
-        .timeline-event .event-meta {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            gap: .5rem;
-            margin-bottom: .15rem;
-            font-weight: 700;
-        }
-
-        .timeline-platform-badge {
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            min-width: 2.25rem;
-            padding: .15rem .35rem;
-            border-radius: 999px;
-            color: #fff;
-            font-size: .64rem;
-            font-weight: 800;
-            letter-spacing: .04em;
-            line-height: 1;
-        }
-
-        .timeline-platform-badge[data-platform="facebook"] { background: #0d6efd; }
-        .timeline-platform-badge[data-platform="mastodon"] { background: #6366f1; }
-        .timeline-platform-badge[data-platform="instagram"] { background: #d63384; }
-        .timeline-platform-badge[data-platform="linkedin"] { background: #0a66c2; }
-        .timeline-platform-badge[data-platform="x"],
-        .timeline-platform-badge[data-platform="twitter"] { background: #212529; }
-        .timeline-platform-badge[data-platform="bluesky"] { background: #0285ff; }
-
-        .article-published-marker {
-            display: flex;
-            align-items: center;
-            gap: .4rem;
-            margin-bottom: .5rem;
-            padding: .4rem .5rem;
-            border: 1px dashed var(--article-color);
-            border-radius: .5rem;
-            background: color-mix(in srgb, var(--article-color), #fff 92%);
-            color: #212529;
-            font-size: .72rem;
-            font-weight: 700;
-            line-height: 1.2;
-        }
-
-        .article-published-marker::before {
-            content: "📄";
-            flex-shrink: 0;
-        }
-
-        .article-published-marker .article-published-label {
-            display: block;
-        }
-
-        .article-published-marker .article-published-time {
-            display: block;
-            margin-top: .1rem;
-            color: var(--text-muted);
-            font-size: .66rem;
-            font-weight: 500;
-        }
-
-        .unscheduled-notice {
-            display: inline-flex;
-            align-items: center;
-            gap: .4rem;
-            margin-top: .8rem;
-            padding: .42rem .58rem;
-            border: 1px solid #ffe69c;
-            border-radius: .5rem;
-            background: #fff3cd;
-            color: #664d03;
-            font-size: .74rem;
-            font-weight: 700;
-            line-height: 1.2;
-        }
-
-        .unscheduled-notice::before {
-            content: "!";
-            display: inline-grid;
-            place-items: center;
-            width: 1.15rem;
-            height: 1.15rem;
-            flex: 0 0 1.15rem;
-            border-radius: 50%;
-            background: #ffc107;
-            color: #212529;
-            font-size: .72rem;
-            font-weight: 900;
-        }
-
-        @keyframes table-row-flash {
-            0%, 100% { background-color: transparent; box-shadow: none; }
-            12%, 72% { background-color: #fff3cd; box-shadow: inset 4px 0 0 #ffc107; }
-        }
-
-        #postsTable tbody tr.row-flash > * {
-            animation: table-row-flash 2.4s ease-out;
-        }
-
-        .article-color-0 { --article-color: #0d6efd; }
-        .article-color-1 { --article-color: #6f42c1; }
-        .article-color-2 { --article-color: #198754; }
-        .article-color-3 { --article-color: #fd7e14; }
-        .article-color-4 { --article-color: #d63384; }
-        .article-color-5 { --article-color: #20c997; }
-        .article-color-6 { --article-color: #6c757d; }
-        .article-color-7 { --article-color: #dc3545; }
-
-        .table-controls {
-            display: grid;
-            grid-template-columns: repeat(4, minmax(170px, 1fr));
-            gap: .75rem;
-        }
-
-        th.sortable {
-            cursor: pointer;
-            user-select: none;
-            white-space: nowrap;
-        }
-
-        th.sortable:hover {
-            background-color: #e9ecef !important;
-        }
-
-        .post-content-cell {
-            min-width: 340px;
-            max-width: 560px;
-        }
-
-        .empty-state {
-            border: 1px dashed var(--border);
-            border-radius: .75rem;
-            background: var(--surface);
-            padding: 2rem;
-            text-align: center;
-        }
-
-
-        .timeline-period-controls {
-            display: flex;
-            align-items: end;
-            justify-content: flex-end;
-            flex-wrap: wrap;
-            gap: .5rem;
-        }
-
-        .timeline-period-controls .date-field {
-            min-width: 145px;
-        }
-
-        .timeline-period-controls label {
-            display: block;
-            margin-bottom: .2rem;
-            color: var(--text-muted);
-            font-size: .72rem;
-            font-weight: 700;
-            text-transform: uppercase;
-        }
-
-        @media (max-width: 991px) {
-            .table-controls {
-                grid-template-columns: 1fr 1fr;
-            }
-        }
-
-        @media (max-width: 575px) {
-            .table-controls {
-                grid-template-columns: 1fr;
-            }
-
-            .timeline-grid {
-                grid-template-columns: 240px repeat(28, 104px);
-            }
-        }
+        body { background: #f5f6f8; }
+        .shell { max-width: 1800px; }
+        .eyebrow { color: var(--muted); font-size: .72rem; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
+        .nav-tabs .nav-link { font-weight: 600; }
+        .panel { background: var(--surface); border: 1px solid var(--border); border-radius: .75rem; }
+        .entity-table td, .entity-table th { vertical-align: middle; }
+        .entity-detail { background: var(--subtle); }
+        .entity-detail pre, .full-text { white-space: pre-wrap; word-break: break-word; }
+        .graph-root { border: 2px solid #212529; border-radius: 1rem; background: white; padding: 1.25rem; }
+        .graph-branch { margin: 1rem 0 0 1.5rem; padding-left: 1.25rem; border-left: 2px solid #ced4da; }
+        .graph-card { background: white; border: 1px solid var(--border); border-radius: .7rem; padding: .85rem; margin-bottom: .75rem; }
+        .graph-card.topic { border-left: 4px solid #6f42c1; }
+        .graph-card.prompt { border-left: 4px solid #fd7e14; }
+        .graph-card.post { border-left: 4px solid #0d6efd; }
+        .graph-card.image { border-left: 4px solid #198754; }
+        .post-text { white-space: pre-wrap; }
+        .calendar-scroll { overflow-x: auto; }
+        .calendar-grid { display: grid; grid-template-columns: 270px repeat(var(--days), 145px); min-width: max-content; }
+        .calendar-head, .calendar-label, .calendar-cell { border-right: 1px solid var(--border); border-bottom: 1px solid var(--border); }
+        .calendar-head { padding: .6rem; text-align: center; background: var(--subtle); font-weight: 700; }
+        .calendar-head.today { background: #fff3cd; }
+        .calendar-label { position: sticky; left: 0; z-index: 2; background: white; padding: .8rem; }
+        .calendar-cell { min-height: 105px; padding: .4rem; background: white; }
+        .calendar-event { display: block; border-radius: .45rem; padding: .4rem .5rem; margin-bottom: .35rem; font-size: .78rem; border: 1px solid var(--border); background: #f8f9fa; }
+        .calendar-event.published { background: #d1e7dd; }
+        .calendar-event.scheduled { background: #cfe2ff; }
+        .calendar-event.article { background: #fff3cd; font-weight: 700; }
+        .calendar-filter-list { max-height: 240px; overflow-y: auto; }
+        .review-card textarea { min-height: 180px; }
+        .status-badge { font-size: .72rem; }
+        .small-mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: .75rem; }
     </style>
 </head>
-<body class="bg-light">
-<div class="container-fluid dashboard-shell py-4 px-xl-4">
-    <header class="pb-3 mb-4 border-bottom d-flex justify-content-between align-items-center gap-3">
+<body>
+<div class="container-fluid shell py-4">
+    <div class="d-flex flex-wrap justify-content-between align-items-end gap-3 mb-4">
         <div>
-            <h1 class="h3 mb-1">🛒 SmartCartLab Social Dashboard</h1>
-            <div class="text-muted small">Editorial review and article distribution</div>
+            <div class="eyebrow">SmartCartLab</div>
+            <h1 class="h3 mb-1">Social Dashboard</h1>
+            <div class="text-muted">Dati, relazioni, revisione e piano editoriale.</div>
         </div>
-        <span class="badge bg-secondary">Local Mode</span>
-    </header>
+    </div>
 
-    <!-- Article-centric timeline -->
-    <section class="mb-5" id="timeline">
-        {% if post_created %}
-            <div class="alert alert-success alert-dismissible fade show" role="alert">
-                Nuovo post creato e aggiunto alla coda di approvazione.
-                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-            </div>
-        {% elif post_error %}
-            <div class="alert alert-danger alert-dismissible fade show" role="alert">
-                Impossibile creare il post. Controlla piattaforma, prompt e contenuto, quindi riprova.
-                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-            </div>
-        {% endif %}
-        <div class="section-heading flex-wrap align-items-end">
-            <div>
-                <div class="eyebrow">Article distribution</div>
-                <h2 class="h4 mb-1">Content timeline</h2>
-                <div class="text-muted small">{{ window_start.strftime('%d %b %Y') }} – {{ window_end.strftime('%d %b %Y') }}</div>
-            </div>
+    <ul class="nav nav-tabs mb-4">
+        {% for key, label in [('entities', 'Entità'), ('graph', 'Mappa'), ('review', 'Review'), ('calendar', 'Piano editoriale')] %}
+        <li class="nav-item">
+            <a class="nav-link {% if tab == key %}active{% endif %}" href="/?tab={{ key }}">{{ label }}</a>
+        </li>
+        {% endfor %}
+    </ul>
 
-            <div class="timeline-period-controls">
-                <div class="btn-group" role="group" aria-label="Timeline navigation">
-                    <a class="btn btn-outline-secondary btn-sm" href="/?start={{ previous_start }}&end={{ previous_end }}#timeline">← Previous</a>
-                    <a class="btn btn-outline-secondary btn-sm" href="/?start={{ today_start }}&end={{ today_end }}#timeline">Today</a>
-                    <a class="btn btn-outline-secondary btn-sm" href="/?start={{ next_start }}&end={{ next_end }}#timeline">Next →</a>
-                </div>
-
-                <form method="GET" action="/" class="d-flex align-items-end flex-wrap gap-2">
-                    <div class="date-field">
-                        <label for="timelineStart">From</label>
-                        <input id="timelineStart" class="form-control form-control-sm" type="date" name="start" value="{{ window_start.isoformat() }}" required>
-                    </div>
-                    <div class="date-field">
-                        <label for="timelineEnd">To</label>
-                        <input id="timelineEnd" class="form-control form-control-sm" type="date" name="end" value="{{ window_end.isoformat() }}" required>
-                    </div>
-                    <button class="btn btn-primary btn-sm" type="submit">Apply</button>
-                </form>
-            </div>
-        </div>
-
-        {% if not article_groups %}
-            <div class="empty-state">No articles have social activity in the selected period.</div>
-        {% else %}
-            <div class="timeline-frame shadow-sm">
-                <div class="timeline-scroll">
-                    <div class="timeline-grid timeline-header" style="grid-template-columns: 300px repeat({{ timeline_days|length }}, var(--timeline-day-width));">
-                        <div class="timeline-corner">
-                            Article / campaign
-                            <form method="POST" action="/posts/schedule-approved" id="scheduleApprovedForm" class="d-none">
-                                <button type="submit" class="btn btn-primary btn-sm">
-                                    Schedule approved
-                                </button>
-                            </form>
-                        </div>
-                        {% for day in timeline_days %}
-                            <div class="timeline-day {% if day == today %}is-today{% endif %}">
-                                <div class="small text-uppercase text-muted">{{ day.strftime('%a') }}</div>
-                                <strong>{{ day.strftime('%d %b') }}</strong>
-                            </div>
+    {% if tab == 'entities' %}
+    <section>
+        <div class="panel p-3 mb-3">
+            <form class="row g-2 align-items-end" method="GET">
+                <input type="hidden" name="tab" value="entities">
+                <div class="col-md-3">
+                    <label class="form-label small fw-semibold">Entità</label>
+                    <select class="form-select" name="entity" onchange="this.form.submit()">
+                        {% for key, label in entity_types.items() %}
+                        <option value="{{ key }}" {% if entity == key %}selected{% endif %}>{{ label }}</option>
                         {% endfor %}
-                    </div>
-
-                    {% for article in article_groups %}
-                        <div class="timeline-grid article-color-{{ article.color_index }}{% if article.is_inactive %} is-inactive{% endif %}" style="grid-template-columns: 300px repeat({{ timeline_days|length }}, var(--timeline-day-width));">
-                            <div class="timeline-article">
-                                <div class="d-flex gap-3">
-                                    {% if article.media_url %}
-                                        <img src="{{ article.media_url }}" alt="" width="54" height="54" class="rounded object-fit-cover flex-shrink-0">
-                                    {% endif %}
-                                    <div class="min-w-0">
-                                        <a class="article-context fw-semibold d-block" href="{{ article.link }}" target="_blank" rel="noreferrer">{{ article.title }}</a>
-                                        <div class="small text-muted mt-1">Article {{ article.id }}{% if article.pub_date %} · {{ article.pub_date[:16]|replace('T', ' ') }}{% endif %}</div>
-                                        <button type="button"
-                                                class="btn btn-outline-primary btn-sm mt-2 create-post-button"
-                                                data-bs-toggle="modal"
-                                                data-bs-target="#createPostModal"
-                                                data-article-id="{{ article.id }}"
-                                                data-article-title="{{ article.title }}">
-                                            + Crea nuovo post
-                                        </button>
-                                    </div>
-                                </div>
-
-                                {% if is_default_window and article.unscheduled %}
-                                    <div class="unscheduled-notice">
-                                        {{ article.unscheduled|length }} approved post{% if article.unscheduled|length != 1 %}s{% endif %} without a schedule
-                                    </div>
-                                {% endif %}
-                            </div>
-
-                            {% for day in timeline_days %}
-                                <div class="timeline-cell {% if day == today %}is-today{% endif %}"
-                                     data-date="{{ day.isoformat() }}">
-
-                                    {% if article.pub_date_day == day.isoformat() %}
-                                        <div class="article-published-marker"
-                                            title="Article published on {{ article.pub_date[:16]|replace('T', ' ') }}">
-                                            <div>
-                                                <span class="article-published-label">Article published</span>
-                                                <span class="article-published-time">
-                                                    {{ article.pub_date_time or '' }}
-                                                </span>
-                                            </div>
-                                        </div>
-                                    {% endif %}
-
-                                    {% for post in article.posts_by_day[day.isoformat()] %}
-                                        <a href="#post-row-{{ post.id }}"
-                                           class="timeline-event {% if post.status == 'PUBLISHED' %}published{% endif %}"
-                                           title="{{ post.content }}"
-                                           data-post-id="{{ post.id }}"
-                                           data-post-status="{{ post.status }}"
-                                           data-post-date="{{ post.scheduled_at_form or '' }}"
-                                           {% if post.status == 'APPROVED' %}draggable="true" aria-label="Drag to reschedule post {{ post.id }}"{% endif %}>
-                                            <span class="event-meta">
-                                                {% set platform_key = post.platform|lower %}
-                                                <span class="timeline-platform-badge" data-platform="{{ platform_key }}">
-                                                    {% if platform_key == 'facebook' %}FBK
-                                                    {% elif platform_key == 'mastodon' %}MSD
-                                                    {% elif platform_key == 'instagram' %}IGR
-                                                    {% elif platform_key == 'linkedin' %}LNK
-                                                    {% elif platform_key in ['twitter', 'x'] %}X
-                                                    {% elif platform_key == 'bluesky' %}BSK
-                                                    {% else %}{{ post.platform[:3]|upper }}{% endif %}
-                                                </span>
-                                                <span>{{ post.event_time }}</span>
-                                            </span>
-                                            <span class="d-block text-muted">Variant {{ post.variation_number }} · {{ post.status|lower }}</span>
-                                        </a>
-                                    {% endfor %}
-                                </div>
-                            {% endfor %}
-                        </div>
-                    {% endfor %}
+                    </select>
                 </div>
-            </div>
-        {% endif %}
-    </section>
-
-
-    <!-- Needs your attention -->
-    <section class="mb-5" id="review">
-        <div class="section-heading">
-            <div>
-                <div class="eyebrow">Human review</div>
-                <h2 class="h4 mb-0">Needs your attention <span class="text-muted">({{ pending_posts|length }})</span></h2>
-            </div>
+                <div class="col-md-6">
+                    <label class="form-label small fw-semibold">Ricerca</label>
+                    <input class="form-control" name="search" value="{{ search }}" placeholder="Titolo, testo, topic, piattaforma...">
+                </div>
+                <div class="col-md-2">
+                    <button class="btn btn-primary w-100">Cerca</button>
+                </div>
+            </form>
         </div>
 
-        {% if not pending_posts %}
-            <div class="alert alert-success mb-0">Nothing is waiting for review.</div>
-        {% else %}
-            <div class="row row-cols-1 row-cols-xl-2 g-4">
-                {% for post in pending_posts %}
-                    <div class="col">
-                        <article class="card review-card h-100 shadow-sm">
-                            <div class="card-header bg-white d-flex justify-content-between align-items-start gap-3">
-                                <div class="min-w-0">
-                                    <div class="d-flex align-items-center flex-wrap gap-2 mb-2">
-                                        <span class="badge platform-badge text-white" data-platform="{{ post.platform|lower }}">{{ post.platform }}</span>
-                                        <span class="text-muted small">Variant #{{ post.variation_number }}</span>
-                                    </div>
-                                    <a class="article-context fw-semibold" href="{{ post.article_link }}" target="_blank" rel="noreferrer">
-                                        📄 {{ post.article_title }}
-                                    </a>
-                                </div>
-                                <small class="text-muted text-nowrap">Post #{{ post.id }}</small>
-                            </div>
-
-                            <form method="POST">
-                                <div class="card-body">
-                                    <label class="form-label small text-muted" for="content-{{ post.id }}">Post content</label>
-                                    <textarea class="form-control" id="content-{{ post.id }}" name="content" rows="5">{{ post.content }}</textarea>
-                                    <div class="d-flex justify-content-end mt-2">
-                                        <small class="text-muted"><span data-character-count>{{ post.content|length }}</span> characters</small>
-                                    </div>
-                                </div>
-
-                                <div class="card-footer bg-white d-flex justify-content-between align-items-center flex-wrap gap-2">
-                                    <div class="d-flex gap-2">
-                                        <button type="submit" formaction="/posts/{{ post.id }}/reject" formnovalidate class="btn btn-outline-danger btn-sm">Reject</button>
-                                        <button type="submit" formaction="/posts/{{ post.id }}/rewrite" formnovalidate class="btn btn-outline-secondary btn-sm">✨ Rewrite</button>
-                                    </div>
-                                    <div class="d-flex gap-2">
-                                        <button type="submit" formaction="/posts/{{ post.id }}/update" class="btn btn-outline-primary btn-sm" data-save-button disabled>Save</button>
-                                        <button type="submit" formaction="/posts/{{ post.id }}/approve" formnovalidate class="btn btn-success btn-sm" data-approve-button>Approve</button>
-                                    </div>
-                                </div>
-                            </form>
-                        </article>
-                    </div>
-                {% endfor %}
-            </div>
-        {% endif %}
-    </section>
-    
-
-    <!-- Full administrative table -->
-    <section id="all-posts">
-        <div class="section-heading">
-            <div>
-                <div class="eyebrow">Administrative view</div>
-                <h2 class="h4 mb-0">All posts</h2>
-            </div>
-        </div>
-
-        <div class="card border-0 shadow-sm">
-            <div class="card-body border-bottom">
-                <div class="table-controls">
-                    <div>
-                        <label class="form-label small text-muted" for="statusFilter">View</label>
-                        <select class="form-select form-select-sm" id="statusFilter">
-                            <option value="upcoming" selected>Upcoming / active</option>
-                            <option value="all">All statuses</option>
-                            <option value="PENDING">Pending</option>
-                            <option value="APPROVED">Approved</option>
-                            <option value="PUBLISHED">Published</option>
-                            <option value="REJECTED">Rejected</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label class="form-label small text-muted" for="platformFilter">Platform</label>
-                        <select class="form-select form-select-sm" id="platformFilter">
-                            <option value="all">All platforms</option>
-                            {% for platform in platforms %}
-                                <option value="{{ platform|lower }}">{{ platform }}</option>
-                            {% endfor %}
-                        </select>
-                    </div>
-                    <div>
-                        <label class="form-label small text-muted" for="articleFilter">Article</label>
-                        <select class="form-select form-select-sm" id="articleFilter">
-                            <option value="all">All articles</option>
-                            {% for article_id, article_title in articles %}
-                                <option value="{{ article_id }}">{{ article_title }}</option>
-                            {% endfor %}
-                        </select>
-                    </div>
-                    <div>
-                        <label class="form-label small text-muted" for="searchFilter">Search</label>
-                        <input class="form-control form-control-sm" id="searchFilter" type="search" placeholder="Post text or article title">
-                    </div>
-                </div>
-            </div>
-
+        <div class="panel overflow-hidden">
             <div class="table-responsive">
-                <table class="table table-hover align-middle mb-0" id="postsTable">
+                <table class="table table-hover entity-table mb-0">
                     <thead class="table-light">
                     <tr>
-                        <th class="sortable">ID ↕</th>
-                        <th class="sortable">Status ↕</th>
-                        <th class="sortable">Date / time ↕</th>
-                        <th class="sortable">Platform ↕</th>
-                        <th class="sortable">Article ↕</th>
-                        <th>Content</th>
-                        <th class="sortable">Characters ↕</th>
-                        <th>Actions</th>
+                        {% for column in entity_columns %}<th>{{ column|replace('_', ' ')|title }}</th>{% endfor %}
+                        <th style="width:70px"></th>
                     </tr>
                     </thead>
                     <tbody>
-                    {% for post in all_posts %}
-                        <tr id="post-row-{{ post.id }}"
-                            data-status="{{ post.status }}"
-                            data-scheduled="{{ 'true' if post.scheduled_at else 'false' }}"
-                            data-platform="{{ post.platform|lower }}"
-                            data-article="{{ post.article_id }}"
-                            data-search="{{ (post.article_title ~ ' ' ~ post.content)|lower|e }}">
-                            <td data-sort-value="{{ post.id }}"><span class="badge text-bg-secondary">#{{ post.id }}</span></td>
-                            <td data-sort-value="{{ post.status }}">
-                                {% if post.status == 'APPROVED' %}
-                                    <span class="badge text-bg-success">Approved</span>
-                                    {% if not post.scheduled_at %}<span class="badge text-bg-light border text-dark">Unscheduled</span>{% endif %}
-                                {% elif post.status == 'PENDING' %}
-                                    <span class="badge text-bg-warning">Pending</span>
-                                {% elif post.status == 'PUBLISHED' %}
-                                    <span class="badge text-bg-info">Published</span>
-                                {% elif post.status == 'REJECTED' %}
-                                    <span class="badge text-bg-secondary">Rejected</span>
-                                {% endif %}
-                            </td>
-                            <td data-sort-value="{{ post.published_at or post.scheduled_at or '' }}">
-                                {% if post.status == 'PUBLISHED' and post.published_at %}
-                                    <strong>{{ post.published_at_display }}</strong>
-                                    <div class="small text-muted">Published</div>
-                                {% elif post.scheduled_at %}
-                                    <strong>{{ post.scheduled_at_display }}</strong>
-                                    <div class="small text-muted">Scheduled</div>
-                                {% else %}
-                                    <span class="text-muted fst-italic">No date</span>
-                                {% endif %}
-                            </td>
-                            <td data-sort-value="{{ post.platform|lower }}">
-                                <span class="badge platform-badge text-white" data-platform="{{ post.platform|lower }}">{{ post.platform }}</span>
-                            </td>
-                            <td data-sort-value="{{ post.article_title|lower }}">
-                                <a href="{{ post.article_link }}" target="_blank" rel="noreferrer" class="article-context fw-semibold">{{ post.article_title }}</a>
-                                <div class="small text-muted">Variant {{ post.variation_number }}</div>
-                            </td>
-                            <td class="post-content-cell">
-                                <div class="text-truncate" style="max-width: 520px" title="{{ post.content }}">{{ post.content }}</div>
-                            </td>
-                            <td data-sort-value="{{ post.content|length }}"><span class="badge text-bg-light border">{{ post.content|length }}</span></td>
+                    {% for row in entity_rows %}
+                    <tr data-bs-toggle="collapse" data-bs-target="#entity-{{ loop.index }}" role="button">
+                        {% for column in entity_columns %}
                             <td>
-                                <div class="d-flex flex-wrap gap-1">
-                                    {% if post.status == 'APPROVED' %}
-                                        <button type="button"
-                                                class="btn btn-secondary btn-sm"
-                                                data-bs-toggle="modal"
-                                                data-bs-target="#rescheduleModal"
-                                                data-post-id="{{ post.id }}"
-                                                data-post-date="{{ post.scheduled_at_form or '' }}">
-                                            Schedule
-                                        </button>
-                                        <form action="/posts/{{ post.id }}/cancel" method="POST" class="d-inline">
-                                            <button type="submit" class="btn btn-warning btn-sm text-dark">Return to review</button>
-                                        </form>
-                                        <form action="/posts/{{ post.id }}/publish-now" method="POST" class="d-inline">
-                                            <button type="submit" class="btn btn-success btn-sm">Publish now</button>
-                                        </form>
-                                    {% elif post.status == 'REJECTED' %}
-                                        <form action="/posts/{{ post.id }}/restore" method="POST" class="d-inline">
-                                            <button type="submit" class="btn btn-primary btn-sm">Restore to pending</button>
-                                        </form>
-                                    {% else %}
-                                        <span class="text-muted small">—</span>
-                                    {% endif %}
-                                </div>
+                                {% if column == 'content' %}
+                                    <span class="text-truncate d-inline-block" style="max-width:460px">{{ row.get(column, '') }}</span>
+                                {% elif column == 'prompt' %}
+                                    <span class="text-truncate d-inline-block" style="max-width:460px">{{ row.get(column, '') }}</span>
+                                {% elif column == 'scheduled_at' %}
+                                    {{ row.get('scheduled_at_display', '') }}
+                                {% elif column == 'size' %}
+                                    {{ row.get('width') }}×{{ row.get('height') }}
+                                {% else %}
+                                    {{ row.get(column, '') }}
+                                {% endif %}
                             </td>
-                        </tr>
+                        {% endfor %}
+                        <td class="text-muted">▾</td>
+                    </tr>
+                    <tr class="collapse entity-detail" id="entity-{{ loop.index }}">
+                        <td colspan="99" class="p-4">
+                            <div class="row g-3">
+                                {% for key, value in row.items() %}
+                                <div class="col-md-6">
+                                    <div class="small text-muted fw-semibold">{{ key }}</div>
+                                    <div class="full-text">{{ value if value is not none else '—' }}</div>
+                                </div>
+                                {% endfor %}
+                            </div>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr><td colspan="99" class="text-center text-muted py-5">Nessun dato trovato.</td></tr>
                     {% endfor %}
                     </tbody>
                 </table>
             </div>
-            <div class="card-footer bg-white text-muted small"><span id="visiblePostCount">0</span> posts shown</div>
         </div>
     </section>
-</div>
+    {% endif %}
 
+    {% if tab == 'graph' %}
+    <section>
+        <div class="panel p-3 mb-3">
+            <form method="GET" class="row g-2 align-items-end">
+                <input type="hidden" name="tab" value="graph">
+                <div class="col-lg-8">
+                    <label class="form-label small fw-semibold">Articolo</label>
+                    <select class="form-select" name="article_id">
+                        {% for article in articles %}
+                        <option value="{{ article.id }}" {% if graph and graph.article.id|string == article.id|string %}selected{% endif %}>{{ article.title }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-lg-2"><button class="btn btn-primary w-100">Apri</button></div>
+            </form>
+        </div>
 
-<!-- Create post modal -->
-<div class="modal fade" id="createPostModal" tabindex="-1" aria-labelledby="createPostModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-lg">
-        <div class="modal-content">
-            <form action="/posts/create" method="POST" id="createPostForm">
-                <div class="modal-header">
-                    <div>
-                        <h5 class="modal-title" id="createPostModalLabel">Crea nuovo post</h5>
-                        <div class="small text-muted" id="createPostArticleTitle"></div>
-                    </div>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        {% if graph %}
+        <div class="graph-root">
+            <div class="eyebrow">Article</div>
+            <h2 class="h4 mb-1">{{ graph.article.title }}</h2>
+            <div class="text-muted small">{{ graph.article.pub_date or '' }} · {{ graph.article.link }}</div>
+
+            {% for node in graph.topics %}
+            <div class="graph-branch">
+                <div class="graph-card topic">
+                    <div class="eyebrow">Topic {{ loop.index }}</div>
+                    <div class="fw-semibold">{{ node.topic.topic }}</div>
                 </div>
 
-                <div class="modal-body">
-                    <input type="hidden" name="article_id" id="createPostArticleId">
+                {% if node.prompt %}
+                <div class="graph-branch">
+                    <div class="graph-card prompt">
+                        <div class="eyebrow">Image prompt</div>
+                        <div class="full-text">{{ node.prompt.prompt }}</div>
+                    </div>
+                    {% for image in node.images %}
+                    <div class="graph-branch">
+                        <div class="graph-card image">
+                            <div class="eyebrow">Generated image #{{ image.id }}</div>
+                            <div>{{ image.width }}×{{ image.height }} · {{ image.provider }} · {{ image.model }}</div>
+                            <div class="small-mono mt-1">{{ image.file_path }}</div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% endif %}
 
-                    <div class="mb-3">
-                        <label for="createPostPlatform" class="form-label">Piattaforma</label>
-                        <select class="form-select" name="platform" id="createPostPlatform" required>
-                            <option value="facebook">Facebook</option>
-                            <option value="mastodon">Mastodon</option>
+                {% for post in node.posts %}
+                <div class="graph-branch">
+                    <div class="graph-card post">
+                        <div class="d-flex justify-content-between gap-2">
+                            <div class="eyebrow">{{ post.platform }} · {{ post.status }}</div>
+                            <span class="small text-muted">#{{ post.id }}</span>
+                        </div>
+                        <div class="post-text mt-2">{{ post.content }}</div>
+                        <div class="small text-muted mt-2">{{ post.scheduled_at_display or 'non programmato' }}</div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% endfor %}
+
+            {% if graph.direct_posts %}
+            <div class="graph-branch">
+                <div class="eyebrow mb-2">Direct posts · collegati direttamente all'articolo</div>
+                {% for post in graph.direct_posts %}
+                <div class="graph-card post">
+                    <div class="d-flex justify-content-between gap-2">
+                        <div class="eyebrow">{{ post.platform }} · {{ post.status }}</div>
+                        <span class="small text-muted">#{{ post.id }}</span>
+                    </div>
+                    <div class="post-text mt-2">{{ post.content }}</div>
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+        </div>
+        {% endif %}
+    </section>
+    {% endif %}
+
+    {% if tab == 'review' %}
+    <section>
+        <div class="d-flex flex-wrap justify-content-between align-items-end gap-3 mb-3">
+            <div>
+                <div class="eyebrow">Human control</div>
+                <h2 class="h4 mb-0">Review e gestione post</h2>
+            </div>
+            <form method="GET" class="d-flex gap-2">
+                <input type="hidden" name="tab" value="review">
+                <select name="platform" class="form-select">
+                    <option value="all">Tutte le piattaforme</option>
+                    {% for p in platforms %}<option value="{{ p }}" {% if platform == p %}selected{% endif %}>{{ p }}</option>{% endfor %}
+                </select>
+                <button class="btn btn-outline-secondary">Filtra</button>
+            </form>
+        </div>
+
+        <div class="row g-3">
+            {% for post in review_posts %}
+            <div class="col-12">
+                <div class="panel review-card p-3">
+                    <div class="d-flex flex-wrap justify-content-between gap-2 mb-3">
+                        <div>
+                            <div class="fw-semibold">{{ post.article_title }}</div>
+                            <div class="small text-muted">
+                                {{ post.platform }} · #{{ post.id }}
+                                {% if post.topic %} · Topic: {{ post.topic }}{% else %} · Direct article post{% endif %}
+                            </div>
+                        </div>
+                        <span class="badge text-bg-secondary status-badge">{{ post.status }}</span>
+                    </div>
+
+                    <form method="POST" action="/posts/{{ post.id }}/update">
+                        <label class="form-label small fw-semibold">Testo</label>
+                        <textarea class="form-control mb-2" name="content">{{ post.content }}</textarea>
+                        <div class="d-flex flex-wrap gap-2">
+                            <button class="btn btn-primary btn-sm">Salva modifica</button>
+                        </div>
+                    </form>
+
+                    <div class="d-flex flex-wrap gap-2 mt-2">
+                        {% if post.topic %}
+                        <form method="POST" action="/posts/{{ post.id }}/regenerate-topic">
+                            <button class="btn btn-outline-primary btn-sm">Rigenera dal topic</button>
+                        </form>
+                        {% endif %}
+                        <button class="btn btn-outline-secondary btn-sm" type="button" data-bs-toggle="collapse" data-bs-target="#custom-{{ post.id }}">Rigenera con prompt</button>
+                        <form method="POST" action="/posts/{{ post.id }}/rewrite">
+                            <button class="btn btn-outline-dark btn-sm">Riscrivi</button>
+                        </form>
+                        {% if post.status == 'PENDING' %}
+                        <form method="POST" action="/posts/{{ post.id }}/approve">
+                            <button class="btn btn-success btn-sm">Approva</button>
+                        </form>
+                        <form method="POST" action="/posts/{{ post.id }}/reject">
+                            <button class="btn btn-outline-danger btn-sm">Rifiuta</button>
+                        </form>
+                        {% elif post.status == 'REJECTED' %}
+                        <form method="POST" action="/posts/{{ post.id }}/restore">
+                            <button class="btn btn-outline-secondary btn-sm">Riporta in review</button>
+                        </form>
+                        {% endif %}
+                    </div>
+
+                    <div class="collapse mt-3" id="custom-{{ post.id }}">
+                        <form method="POST" action="/posts/{{ post.id }}/regenerate-custom" class="d-flex gap-2">
+                            <input class="form-control" name="prompt" placeholder="Es. rendilo più concreto e concentra l'attenzione sul trade-off principale" required>
+                            <button class="btn btn-secondary">Genera</button>
+                        </form>
+                    </div>
+
+                    {% if post.status == 'APPROVED' %}
+                    <div class="mt-3 pt-3 border-top">
+                        <div class="row g-2 align-items-end">
+                            <div class="col-md-5">
+                                <label class="form-label small fw-semibold">Programmazione</label>
+                                <form method="POST" action="/posts/{{ post.id }}/reschedule" class="d-flex gap-2">
+                                    <input class="form-control" type="datetime-local" name="scheduled_at" value="{{ post.scheduled_at_form }}" required>
+                                    <button class="btn btn-outline-primary">Salva</button>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+            {% else %}
+            <div class="col-12"><div class="panel p-5 text-center text-muted">Nessun post in attesa di revisione.</div></div>
+            {% endfor %}
+        </div>
+
+        <div class="panel p-3 mt-4">
+            <div class="eyebrow">Nuovo post</div>
+            <h3 class="h5">Crea un post manuale o con prompt</h3>
+            <form method="POST" action="/posts/create" class="row g-2">
+                <div class="col-md-4">
+                    <label class="form-label small">Articolo</label>
+                    <select name="article_id" class="form-select" required>
+                        {% for article in articles %}<option value="{{ article.id }}">{{ article.title }}</option>{% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label small">Platform</label>
+                    <select name="platform" class="form-select"><option>facebook</option><option>mastodon</option></select>
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label small">Prompt custom</label>
+                    <input name="prompt" class="form-control" placeholder="Es. concentra il post sul trade-off tra qualità e costo">
+                </div>
+                <div class="col-12">
+                    <label class="form-label small">Oppure testo manuale</label>
+                    <textarea name="content" class="form-control" rows="4"></textarea>
+                </div>
+                <div class="col-12"><button class="btn btn-primary">Crea post</button></div>
+            </form>
+        </div>
+    </section>
+    {% endif %}
+
+    {% if tab == 'calendar' %}
+    <section>
+        <div class="panel p-3 mb-3">
+            <form method="GET" id="calendarFilterForm">
+                <input type="hidden" name="tab" value="calendar">
+                <div class="row g-3">
+                    <div class="col-lg-5">
+                        <div class="small fw-semibold mb-2">Articoli</div>
+                        <div class="calendar-filter-list border rounded p-2">
+                            <div class="d-flex gap-2 mb-2">
+                                <button type="button" class="btn btn-sm btn-outline-secondary" onclick="setArticleChecks(true)">Tutti</button>
+                                <button type="button" class="btn btn-sm btn-outline-secondary" onclick="setArticleChecks(false)">Nessuno</button>
+                            </div>
+                            {% for article in articles %}
+                            <div class="form-check">
+                                <input class="form-check-input article-check" type="checkbox" name="selected_articles" value="{{ article.id }}" id="article-{{ loop.index }}" {% if article.id|string in selected_articles %}checked{% endif %}>
+                                <label class="form-check-label" for="article-{{ loop.index }}">{{ article.title }}</label>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    <div class="col-lg-2">
+                        <label class="small fw-semibold">Platform</label>
+                        <select name="platform" class="form-select mt-2">
+                            <option value="all">Tutte</option>
+                            {% for p in platforms %}<option value="{{ p }}" {% if platform == p %}selected{% endif %}>{{ p }}</option>{% endfor %}
                         </select>
                     </div>
-
-                    <div class="mb-3">
-                        <label for="createPostPrompt" class="form-label">Prompt per Gemma</label>
-                        <textarea class="form-control"
-                                  name="prompt"
-                                  id="createPostPrompt"
-                                  rows="4"
-                                  placeholder="Esempio: crea un nuovo post che riprenda l'articolo da un punto di vista più pratico e personale."></textarea>
-                        <div class="form-text">
-                            Usato solo se il contenuto manuale qui sotto è vuoto.
-                        </div>
+                    <div class="col-lg-2">
+                        <label class="small fw-semibold">Da</label>
+                        <input type="date" name="start" class="form-control mt-2" value="{{ window_start.isoformat() }}">
                     </div>
-
-                    <div>
-                        <label for="createPostContent" class="form-label">Contenuto manuale</label>
-                        <textarea class="form-control"
-                                  name="content"
-                                  id="createPostContent"
-                                  rows="7"
-                                  placeholder="Scrivi direttamente il post, oppure lascia vuoto e usa il prompt per Gemma."></textarea>
-                        <div class="d-flex justify-content-between mt-2">
-                            <div class="form-text">Il contenuto manuale ha la precedenza sul prompt.</div>
-                            <small class="text-muted"><span id="createPostCharacterCount">0</span> caratteri</small>
-                        </div>
+                    <div class="col-lg-2">
+                        <label class="small fw-semibold">A</label>
+                        <input type="date" name="end" class="form-control mt-2" value="{{ window_end.isoformat() }}">
                     </div>
-                </div>
-
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Annulla</button>
-                    <button type="submit" class="btn btn-primary">Crea post pending</button>
+                    <div class="col-lg-1 d-flex align-items-end"><button class="btn btn-primary w-100">OK</button></div>
                 </div>
             </form>
         </div>
-    </div>
-</div>
 
-<!-- Schedule modal -->
-<div class="modal fade" id="rescheduleModal" tabindex="-1" aria-labelledby="rescheduleModalLabel" aria-hidden="true">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <form id="rescheduleForm" method="POST">
-                <div class="modal-header">
-                    <h5 class="modal-title" id="rescheduleModalLabel">Schedule post</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        <div class="panel overflow-hidden">
+            <div class="calendar-scroll">
+                <div class="calendar-grid" style="--days: {{ calendar_days|length }}">
+                    <div class="calendar-head">Articolo</div>
+                    {% for day in calendar_days %}<div class="calendar-head {% if day == today %}today{% endif %}">{{ day.strftime('%a') }}<br>{{ day.strftime('%d/%m') }}</div>{% endfor %}
+
+                    {% for article in calendar_articles %}
+                    <div class="calendar-label">
+                        <div class="fw-semibold">{{ article.title }}</div>
+                        <div class="small text-muted">{{ article.pub_date or '' }}</div>
+                    </div>
+                    {% for day in calendar_days %}
+                    <div class="calendar-cell">
+                        {% if article.pub_date and article.pub_date[:10] == day.isoformat() %}
+                        <div class="calendar-event article">ARTICLE · pubblicato</div>
+                        {% endif %}
+                        {% for post in calendar_posts if post.article_id|string == article.id|string and ((post.status == 'PUBLISHED' and post.published_at and post.published_at[:10] == day.isoformat()) or (post.status == 'APPROVED' and post.scheduled_at and post.scheduled_at[:10] == day.isoformat())) %}
+                        <div class="calendar-event {% if post.status == 'PUBLISHED' %}published{% else %}scheduled{% endif %}">
+                            <strong>{{ post.platform }}</strong> · {{ post.status|lower }}<br>
+                            {{ post.event_time or post.scheduled_at_display or post.published_at_display }}
+                            <div class="text-muted">#{{ post.id }}{% if post.topic %} · {{ post.topic }}{% endif %}</div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% endfor %}
+                    {% endfor %}
                 </div>
-                <div class="modal-body">
-                    <label for="scheduled_at_input" class="form-label">Publication date and time</label>
-                    <input type="datetime-local" class="form-control" id="scheduled_at_input" name="scheduled_at" required>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
-                    <button type="submit" class="btn btn-primary">Save schedule</button>
-                </div>
-            </form>
+            </div>
         </div>
-    </div>
+    </section>
+    {% endif %}
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 <script>
-
-    // Populate the custom post modal with the selected article.
-    const createPostModal = document.getElementById('createPostModal');
-    const createPostForm = document.getElementById('createPostForm');
-    const createPostArticleId = document.getElementById('createPostArticleId');
-    const createPostArticleTitle = document.getElementById('createPostArticleTitle');
-    const createPostPrompt = document.getElementById('createPostPrompt');
-    const createPostContent = document.getElementById('createPostContent');
-    const createPostCharacterCount = document.getElementById('createPostCharacterCount');
-
-    createPostModal?.addEventListener('show.bs.modal', event => {
-        const trigger = event.relatedTarget;
-        if (!trigger) return;
-
-        createPostArticleId.value = trigger.getAttribute('data-article-id') || '';
-        createPostArticleTitle.textContent = trigger.getAttribute('data-article-title') || '';
-        createPostPrompt.value = '';
-        createPostContent.value = '';
-        createPostCharacterCount.textContent = '0';
-    });
-
-    createPostContent?.addEventListener('input', () => {
-        createPostCharacterCount.textContent = createPostContent.value.length;
-    });
-
-    createPostForm?.addEventListener('submit', event => {
-        const hasPrompt = createPostPrompt.value.trim().length > 0;
-        const hasContent = createPostContent.value.trim().length > 0;
-
-        if (!hasPrompt && !hasContent) {
-            event.preventDefault();
-            createPostContent.setCustomValidity('Inserisci un contenuto oppure un prompt per Gemma.');
-            createPostContent.reportValidity();
-            return;
-        }
-
-        createPostContent.setCustomValidity('');
-    });
-
-
-    // Position the timeline so that yesterday is still hinted at,
-    // today sits near the left edge and the upcoming days dominate the viewport.
-    const timelineScroll = document.querySelector('.timeline-scroll');
-    const todayHeader = document.querySelector('.timeline-header .timeline-day.is-today');
-    if (timelineScroll && todayHeader) {
-        requestAnimationFrame(() => {
-            const articleColumnWidth = document.querySelector('.timeline-corner')?.offsetWidth ?? 300;
-            const dayWidth = todayHeader.offsetWidth;
-            const pastHint = Math.round(dayWidth * 1.15);
-            timelineScroll.scrollLeft = Math.max(0, todayHeader.offsetLeft - articleColumnWidth - pastHint);
-        });
-    }
-
-    // Live character counters and Save / Approve state in review cards.
-    document.querySelectorAll('.review-card textarea').forEach(textarea => {
-        const card = textarea.closest('.review-card');
-        const counter = card?.querySelector('[data-character-count]');
-        const saveButton = card?.querySelector('[data-save-button]');
-        const approveButton = card?.querySelector('[data-approve-button]');
-
-        const initialContent = textarea.value;
-
-        function updateReviewState() {
-            if (counter) {
-                counter.textContent = textarea.value.length;
-            }
-
-            const hasChanges = textarea.value !== initialContent;
-
-            if (saveButton) {
-                saveButton.disabled = !hasChanges;
-            }
-            if (approveButton) {
-                approveButton.disabled = hasChanges;
-            }
-        }
-
-        textarea.addEventListener('input', updateReviewState);
-        updateReviewState();
-    });
-
-    // Schedule modal population and programmatic opening from drag & drop.
-    const rescheduleModal = document.getElementById('rescheduleModal');
-    const rescheduleForm = document.getElementById('rescheduleForm');
-    const scheduledAtInput = document.getElementById('scheduled_at_input');
-
-    function prepareScheduleModal(postId, postDate = '') {
-        rescheduleForm.action = `/posts/${postId}/reschedule`;
-        scheduledAtInput.value = postDate ? postDate.replace(' ', 'T').slice(0, 16) : '';
-    }
-
-    function openScheduleModal(postId, postDate = '') {
-        prepareScheduleModal(postId, postDate);
-        bootstrap.Modal.getOrCreateInstance(rescheduleModal).show();
-        window.setTimeout(() => scheduledAtInput.focus(), 180);
-    }
-
-    rescheduleModal?.addEventListener('show.bs.modal', event => {
-        const trigger = event.relatedTarget;
-        if (!trigger) return;
-        prepareScheduleModal(
-            trigger.getAttribute('data-post-id'),
-            trigger.getAttribute('data-post-date') || ''
-        );
-    });
-
-    // Drag an APPROVED event onto another day. The existing Schedule modal
-    // opens with the new day and the current time preserved for quick editing.
-    let draggedTimelineEvent = null;
-    let lastTimelineDragEndedAt = 0;
-
-    function combineDateWithExistingTime(targetDate, currentDateTime) {
-        const currentValue = (currentDateTime || '').replace(' ', 'T');
-        const timePart = currentValue.length >= 16 ? currentValue.slice(11, 16) : '14:00';
-        return `${targetDate}T${timePart}`;
-    }
-
-    document.querySelectorAll('.timeline-event[draggable="true"]').forEach(eventCard => {
-        eventCard.addEventListener('dragstart', event => {
-            draggedTimelineEvent = eventCard;
-            eventCard.classList.add('is-dragging');
-            event.dataTransfer.effectAllowed = 'move';
-            event.dataTransfer.setData('text/plain', eventCard.dataset.postId);
-        });
-
-        eventCard.addEventListener('dragend', () => {
-            lastTimelineDragEndedAt = Date.now();
-            eventCard.classList.remove('is-dragging');
-            document.querySelectorAll('.timeline-cell').forEach(cell => {
-                cell.classList.remove('is-drop-target', 'is-drop-invalid');
-            });
-            draggedTimelineEvent = null;
-        });
-    });
-
-    document.querySelectorAll('.timeline-cell[data-date]').forEach(dayCell => {
-        dayCell.addEventListener('dragover', event => {
-            if (!draggedTimelineEvent) return;
-            event.preventDefault();
-            event.dataTransfer.dropEffect = 'move';
-            dayCell.classList.add('is-drop-target');
-        });
-
-        dayCell.addEventListener('dragleave', event => {
-            if (!dayCell.contains(event.relatedTarget)) {
-                dayCell.classList.remove('is-drop-target');
-            }
-        });
-
-        dayCell.addEventListener('drop', event => {
-            event.preventDefault();
-            dayCell.classList.remove('is-drop-target');
-            if (!draggedTimelineEvent) return;
-
-            const postId = draggedTimelineEvent.dataset.postId;
-            const currentDate = draggedTimelineEvent.dataset.postDate || '';
-            const targetDate = dayCell.dataset.date;
-            const nextDateTime = combineDateWithExistingTime(targetDate, currentDate);
-
-            openScheduleModal(postId, nextDateTime);
-        });
-    });
-
-    // Table filtering.
-    const statusFilter = document.getElementById('statusFilter');
-    const platformFilter = document.getElementById('platformFilter');
-    const articleFilter = document.getElementById('articleFilter');
-    const searchFilter = document.getElementById('searchFilter');
-    const tableRows = Array.from(document.querySelectorAll('#postsTable tbody tr'));
-    const visiblePostCount = document.getElementById('visiblePostCount');
-
-    function applyFilters() {
-        const status = statusFilter.value;
-        const platform = platformFilter.value;
-        const article = articleFilter.value;
-        const search = searchFilter.value.trim().toLowerCase();
-        let visible = 0;
-
-        tableRows.forEach(row => {
-            const rowStatus = row.dataset.status;
-            const statusMatches = status === 'all'
-                || (status === 'upcoming' && ['PENDING', 'APPROVED'].includes(rowStatus))
-                || status === rowStatus;
-            const platformMatches = platform === 'all' || platform === row.dataset.platform;
-            const articleMatches = article === 'all' || article === row.dataset.article;
-            const searchMatches = !search || row.dataset.search.includes(search);
-            const show = statusMatches && platformMatches && articleMatches && searchMatches;
-            row.classList.toggle('d-none', !show);
-            if (show) visible += 1;
-        });
-
-        visiblePostCount.textContent = visible;
-    }
-
-    [statusFilter, platformFilter, articleFilter].forEach(control => control.addEventListener('change', applyFilters));
-    searchFilter.addEventListener('input', applyFilters);
-    applyFilters();
-
-    // Column sorting using explicit semantic sort values when available.
-    document.querySelectorAll('#postsTable th.sortable').forEach((th, index) => {
-        let ascending = true;
-        th.addEventListener('click', () => {
-            const tbody = th.closest('table').querySelector('tbody');
-            const rows = Array.from(tbody.querySelectorAll('tr'));
-            rows.sort((a, b) => {
-                const aCell = a.children[index];
-                const bCell = b.children[index];
-                const aValue = aCell.dataset.sortValue ?? aCell.innerText.trim();
-                const bValue = bCell.dataset.sortValue ?? bCell.innerText.trim();
-                return ascending
-                    ? aValue.localeCompare(bValue, 'en', {numeric: true})
-                    : bValue.localeCompare(aValue, 'en', {numeric: true});
-            });
-            rows.forEach(row => tbody.appendChild(row));
-            ascending = !ascending;
-        });
-    });
-
-    // Briefly highlight the table row reached from a timeline event.
-    function highlightTargetRow() {
-        if (!window.location.hash.startsWith('#post-row-')) return;
-
-        const row = document.querySelector(window.location.hash);
-        if (!row) return;
-
-        row.classList.remove('row-flash');
-        void row.offsetWidth;
-        row.classList.add('row-flash');
-        window.setTimeout(() => row.classList.remove('row-flash'), 2500);
-    }
-
-    document.querySelectorAll('.timeline-event[href^="#post-row-"]').forEach(eventLink => {
-        eventLink.addEventListener('click', event => {
-            if (Date.now() - lastTimelineDragEndedAt < 350) {
-                event.preventDefault();
-                return;
-            }
-            window.setTimeout(highlightTargetRow, 80);
-        });
-    });
-
-    window.addEventListener('hashchange', () => window.setTimeout(highlightTargetRow, 80));
-    window.addEventListener('load', highlightTargetRow);
-
-    // Show the bulk scheduling action only when there are APPROVED unscheduled posts.
-    const scheduleApprovedForm = document.getElementById('scheduleApprovedForm');
-
-    const hasUnscheduledApprovedPosts = Array.from(
-        document.querySelectorAll('#postsTable tbody tr')
-    ).some(row =>
-        row.dataset.status === 'APPROVED'
-        && row.dataset.scheduled === 'false'
-    );
-
-    if (hasUnscheduledApprovedPosts) {
-        scheduleApprovedForm?.classList.remove('d-none');
-    }
-
-    // Loading feedback for submit actions.
-    document.querySelectorAll('button[type="submit"]').forEach(button => {
-        button.addEventListener('click', function () {
-            const form = this.closest('form');
-            if (!form || !form.checkValidity()) return;
-            this.style.minWidth = `${this.offsetWidth}px`;
-            setTimeout(() => {
-                this.disabled = true;
-                this.innerHTML = '<span class="spinner-border spinner-border-sm" aria-hidden="true"></span>';
-            }, 20);
-        });
-    });
+function setArticleChecks(value) {
+    document.querySelectorAll('.article-check').forEach(el => el.checked = value);
+}
 </script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>
