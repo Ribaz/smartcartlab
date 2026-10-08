@@ -27,6 +27,9 @@
         .graph-card.prompt { border-left: 4px solid #fd7e14; }
         .graph-card.post { border-left: 4px solid #0d6efd; }
         .graph-card.image { border-left: 4px solid #198754; }
+        .graph-card.compact .full-text,
+        .graph-card.compact .post-text { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+        .card-toggle { font-size: .75rem; text-decoration: none; }
         .post-text { white-space: pre-wrap; }
         .calendar-scroll { overflow-x: auto; }
         .calendar-grid { display: grid; grid-template-columns: 270px repeat(var(--days), 145px); min-width: max-content; }
@@ -155,6 +158,11 @@
         </div>
 
         {% if graph %}
+        <div class="d-flex justify-content-end gap-2 mb-2">
+            <button type="button" class="btn btn-sm btn-outline-secondary" onclick="setAllGraphCards(true)">Compatta tutto</button>
+            <button type="button" class="btn btn-sm btn-outline-secondary" onclick="setAllGraphCards(false)">Espandi tutto</button>
+        </div>
+
         <div class="graph-root">
             <div class="eyebrow">Article</div>
             <h2 class="h4 mb-1">{{ graph.article.title }}</h2>
@@ -170,7 +178,10 @@
                 {% if node.prompt %}
                 <div class="graph-branch">
                     <div class="graph-card prompt">
-                        <div class="eyebrow">Image prompt</div>
+                        <div class="d-flex justify-content-between gap-2">
+                            <div class="eyebrow">Image prompt</div>
+                            <button type="button" class="btn btn-link btn-sm p-0 card-toggle" data-card-toggle>Compatta</button>
+                        </div>
                         <div class="full-text">{{ node.prompt.prompt }}</div>
                     </div>
                     {% for image in node.images %}
@@ -190,7 +201,9 @@
                     <div class="graph-card post">
                         <div class="d-flex justify-content-between gap-2">
                             <div class="eyebrow">{{ post.platform }} · {{ post.status }}</div>
-                            <span class="small text-muted">#{{ post.id }}</span>
+                            <span class="small text-muted">
+                                <button type="button" class="btn btn-link btn-sm p-0 card-toggle me-2" data-card-toggle>Compatta</button>#{{ post.id }}
+                            </span>
                         </div>
                         <div class="post-text mt-2">{{ post.content }}</div>
                         <div class="small text-muted mt-2">{{ post.scheduled_at_display or 'non programmato' }}</div>
@@ -207,7 +220,9 @@
                 <div class="graph-card post">
                     <div class="d-flex justify-content-between gap-2">
                         <div class="eyebrow">{{ post.platform }} · {{ post.status }}</div>
-                        <span class="small text-muted">#{{ post.id }}</span>
+                        <span class="small text-muted">
+                            <button type="button" class="btn btn-link btn-sm p-0 card-toggle me-2" data-card-toggle>Compatta</button>#{{ post.id }}
+                        </span>
                     </div>
                     <div class="post-text mt-2">{{ post.content }}</div>
                 </div>
@@ -427,6 +442,25 @@ if (graphSelect && graphOpenButton) {
         graphOpenButton.disabled = graphSelect.value === loadedArticleId;
     });
 }
+
+// Only cards with a toggle button (prompts and posts) can be compacted.
+function setCardCompact(card, compact) {
+    const toggle = card.querySelector('[data-card-toggle]');
+    if (!toggle) return;
+    card.classList.toggle('compact', compact);
+    toggle.textContent = compact ? 'Espandi' : 'Compatta';
+}
+
+function setAllGraphCards(compact) {
+    document.querySelectorAll('.graph-card').forEach(card => setCardCompact(card, compact));
+}
+
+document.addEventListener('click', event => {
+    const toggle = event.target.closest('[data-card-toggle]');
+    if (!toggle) return;
+    const card = toggle.closest('.graph-card');
+    setCardCompact(card, !card.classList.contains('compact'));
+});
 </script>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
