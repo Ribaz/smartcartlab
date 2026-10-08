@@ -31,6 +31,16 @@
         .graph-card.compact .post-text { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
         .card-toggle { font-size: .75rem; text-decoration: none; }
         .graph-image { display: block; max-width: 100%; max-height: 260px; border: 1px solid var(--border); border-radius: .5rem; }
+        .branch-collapsed > .graph-branch { display: none; }
+        /* !important so type filters always win over the branch-collapse overrides below. */
+        .hide-topic .graph-card.topic,
+        .hide-prompt .graph-card.prompt,
+        .hide-image .node-image,
+        .hide-post .node-post,
+        .hide-post .direct-posts { display: none !important; }
+        /* A hidden type has no toggle button, so its collapsed state must not hide the children. */
+        .hide-topic .node-topic.branch-collapsed > .graph-branch,
+        .hide-prompt .node-prompt.branch-collapsed > .graph-branch { display: block; }
         .post-text { white-space: pre-wrap; }
         .calendar-scroll { overflow-x: auto; }
         .calendar-grid { display: grid; grid-template-columns: 270px repeat(var(--days), 145px); min-width: max-content; }
@@ -159,34 +169,54 @@
         </div>
 
         {% if graph %}
-        <div class="d-flex justify-content-end gap-2 mb-2">
-            <button type="button" class="btn btn-sm btn-outline-secondary" onclick="setAllGraphCards(true)">Compatta tutto</button>
-            <button type="button" class="btn btn-sm btn-outline-secondary" onclick="setAllGraphCards(false)">Espandi tutto</button>
+        <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-2">
+            <div class="d-flex flex-wrap align-items-center gap-3">
+                <span class="small fw-semibold">Mostra:</span>
+                {% for type_key, type_label in [('topic', 'Topic'), ('prompt', 'Image prompt'), ('image', 'Immagini'), ('post', 'Post')] %}
+                <div class="form-check form-check-inline m-0">
+                    <input class="form-check-input" type="checkbox" id="type-filter-{{ type_key }}" data-type-filter="{{ type_key }}" checked>
+                    <label class="form-check-label small" for="type-filter-{{ type_key }}">{{ type_label }}</label>
+                </div>
+                {% endfor %}
+            </div>
+            <div class="d-flex gap-2">
+                <button type="button" class="btn btn-sm btn-outline-secondary" onclick="setAllGraphCards(true)">Compatta tutto</button>
+                <button type="button" class="btn btn-sm btn-outline-secondary" onclick="setAllGraphCards(false)">Espandi tutto</button>
+            </div>
         </div>
 
-        <div class="graph-root">
-            <div class="eyebrow">Article</div>
+        <div class="graph-root" data-branch>
+            <div class="d-flex justify-content-between gap-2">
+                <div class="eyebrow">Article</div>
+                <button type="button" class="btn btn-link btn-sm p-0 card-toggle" data-branch-toggle>Chiudi ramo</button>
+            </div>
             <h2 class="h4 mb-1">{{ graph.article.title }}</h2>
             <div class="text-muted small">{{ graph.article.pub_date or '' }} · {{ graph.article.link }}</div>
 
             {% for node in graph.topics %}
-            <div class="graph-branch">
+            <div class="graph-branch node-topic" data-branch>
                 <div class="graph-card topic">
-                    <div class="eyebrow">Topic {{ loop.index }}</div>
+                    <div class="d-flex justify-content-between gap-2">
+                        <div class="eyebrow">Topic {{ loop.index }}</div>
+                        <button type="button" class="btn btn-link btn-sm p-0 card-toggle" data-branch-toggle>Chiudi ramo</button>
+                    </div>
                     <div class="fw-semibold">{{ node.topic.topic }}</div>
                 </div>
 
                 {% if node.prompt %}
-                <div class="graph-branch">
+                <div class="graph-branch node-prompt" data-branch>
                     <div class="graph-card prompt">
                         <div class="d-flex justify-content-between gap-2">
                             <div class="eyebrow">Image prompt</div>
-                            <button type="button" class="btn btn-link btn-sm p-0 card-toggle" data-card-toggle>Compatta</button>
+                            <span>
+                                <button type="button" class="btn btn-link btn-sm p-0 card-toggle me-2" data-card-toggle>Compatta</button>
+                                <button type="button" class="btn btn-link btn-sm p-0 card-toggle" data-branch-toggle>Chiudi ramo</button>
+                            </span>
                         </div>
                         <div class="full-text">{{ node.prompt.prompt }}</div>
                     </div>
                     {% for image in node.images %}
-                    <div class="graph-branch">
+                    <div class="graph-branch node-image">
                         <div class="graph-card image">
                             <div class="eyebrow">Generated image #{{ image.id }}</div>
                             <div>{{ image.width }}×{{ image.height }} · {{ image.provider }} · {{ image.model }}</div>
@@ -202,7 +232,7 @@
                 {% endif %}
 
                 {% for post in node.posts %}
-                <div class="graph-branch">
+                <div class="graph-branch node-post">
                     <div class="graph-card post">
                         <div class="d-flex justify-content-between gap-2">
                             <div class="eyebrow">{{ post.platform }} · {{ post.status }}</div>
@@ -219,7 +249,7 @@
             {% endfor %}
 
             {% if graph.direct_posts %}
-            <div class="graph-branch">
+            <div class="graph-branch direct-posts">
                 <div class="eyebrow mb-2">Direct posts · collegati direttamente all'articolo</div>
                 {% for post in graph.direct_posts %}
                 <div class="graph-card post">
@@ -466,6 +496,67 @@ document.addEventListener('click', event => {
     const card = toggle.closest('.graph-card');
     setCardCompact(card, !card.classList.contains('compact'));
 });
+
+// The node's own toggle is always the first one in document order,
+// because descendants' toggles come later inside child branches.
+function countHiddenCards(node) {
+    return node.querySelectorAll(':scope > .graph-branch .graph-card').length;
+}
+
+function setBranchCollapsed(node, collapsed) {
+    const toggle = node.querySelector('[data-branch-toggle]');
+    node.classList.toggle('branch-collapsed', collapsed);
+    if (!toggle) return;
+    toggle.textContent = collapsed ? `Apri ramo (${countHiddenCards(node)})` : 'Chiudi ramo';
+}
+
+document.addEventListener('click', event => {
+    const toggle = event.target.closest('[data-branch-toggle]');
+    if (!toggle) return;
+    const node = toggle.closest('[data-branch]');
+    setBranchCollapsed(node, !node.classList.contains('branch-collapsed'));
+});
+
+// Nodes without children have nothing to close.
+document.querySelectorAll('[data-branch]').forEach(node => {
+    if (countHiddenCards(node) > 0) return;
+    const toggle = node.querySelector('[data-branch-toggle]');
+    if (toggle) toggle.hidden = true;
+});
+
+// Type filters are persisted because "Apri" reloads the page.
+const TYPE_FILTER_STORAGE_KEY = 'socialDashboard.graphHiddenTypes';
+
+function loadHiddenTypes() {
+    try {
+        return JSON.parse(localStorage.getItem(TYPE_FILTER_STORAGE_KEY)) || [];
+    } catch (error) {
+        return [];
+    }
+}
+
+function applyTypeFilters() {
+    const root = document.querySelector('.graph-root');
+    if (!root) return;
+    const hidden = [];
+    document.querySelectorAll('[data-type-filter]').forEach(box => {
+        const type = box.dataset.typeFilter;
+        root.classList.toggle(`hide-${type}`, !box.checked);
+        if (!box.checked) hidden.push(type);
+    });
+    try {
+        localStorage.setItem(TYPE_FILTER_STORAGE_KEY, JSON.stringify(hidden));
+    } catch (error) {
+        // Storage can be blocked; filters still work for this page load.
+    }
+}
+
+const hiddenTypes = loadHiddenTypes();
+document.querySelectorAll('[data-type-filter]').forEach(box => {
+    box.checked = !hiddenTypes.includes(box.dataset.typeFilter);
+    box.addEventListener('change', applyTypeFilters);
+});
+applyTypeFilters();
 </script>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
