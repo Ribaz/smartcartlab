@@ -45,6 +45,19 @@
         .platform-badge { display: inline-block; padding: .2em .6em; border-radius: 999px; font-size: .72rem; font-weight: 700; letter-spacing: .02em; color: #fff; background: #6c757d; }
         .platform-facebook { background: #1877f2; }
         .platform-mastodon { background: #6364ff; }
+        /* Mobile first: groups stack and buttons fill the width. */
+        .review-actions { display: grid; gap: .5rem; }
+        .review-actions .actions-group { display: flex; flex-wrap: wrap; gap: .5rem; }
+        .review-actions .actions-group > * { flex: 1 1 auto; }
+        .review-actions .btn { width: 100%; }
+        /* On desktop the groups share one row, and empty groups keep the others in place. */
+        @media (min-width: 768px) {
+            .review-actions { grid-template-columns: 1fr auto 1fr; align-items: center; }
+            .review-actions .actions-group > * { flex: 0 0 auto; }
+            .review-actions .btn { width: auto; }
+            .review-actions .actions-center { justify-content: center; }
+            .review-actions .actions-end { justify-content: flex-end; }
+        }
         .calendar-scroll { overflow-x: auto; }
         .calendar-grid { display: grid; grid-template-columns: 270px repeat(var(--days), 145px); min-width: max-content; }
         .calendar-head, .calendar-label, .calendar-cell { border-right: 1px solid var(--border); border-bottom: 1px solid var(--border); }
@@ -307,32 +320,36 @@
                         <span class="badge text-bg-secondary status-badge">{{ post.status }}</span>
                     </div>
 
-                    <form method="POST" action="/posts/{{ post.id }}/update" data-save-form>
+                    <form id="save-form-{{ post.id }}" method="POST" action="/posts/{{ post.id }}/update" data-save-form>
                         <label class="form-label small fw-semibold">Testo</label>
                         <textarea class="form-control mb-2" name="content">{{ post.content }}</textarea>
-                        <div class="d-flex flex-wrap gap-2">
-                            <button class="btn btn-primary btn-sm" data-save-button disabled>Salva modifica</button>
-                        </div>
                     </form>
 
-                    <div class="d-flex flex-wrap gap-2 mt-2">
-                        {% if post.topic %}
-                        <form method="POST" action="/posts/{{ post.id }}/regenerate-topic" data-confirm-unsaved>
-                            <button class="btn btn-outline-primary btn-sm">Rigenera dal topic</button>
-                        </form>
-                        {% endif %}
-                        {% if post.status == 'PENDING' %}
-                        <form method="POST" action="/posts/{{ post.id }}/approve">
-                            <button class="btn btn-success btn-sm">Approva</button>
-                        </form>
-                        <form method="POST" action="/posts/{{ post.id }}/reject">
-                            <button class="btn btn-outline-danger btn-sm">Rifiuta</button>
-                        </form>
-                        {% elif post.status == 'REJECTED' %}
-                        <form method="POST" action="/posts/{{ post.id }}/restore">
-                            <button class="btn btn-outline-secondary btn-sm">Riporta in review</button>
-                        </form>
-                        {% endif %}
+                    <div class="review-actions">
+                        <div class="actions-group actions-start">
+                            <button type="submit" form="save-form-{{ post.id }}" class="btn btn-primary btn-sm" data-save-button disabled><span aria-hidden="true">💾</span> Salva modifica</button>
+                        </div>
+                        <div class="actions-group actions-center">
+                            {% if post.topic %}
+                            <form method="POST" action="/posts/{{ post.id }}/regenerate-topic" data-confirm-unsaved>
+                                <button class="btn btn-warning btn-sm"><span aria-hidden="true">🎆</span> Rigenera dal topic</button>
+                            </form>
+                            {% endif %}
+                        </div>
+                        <div class="actions-group actions-end">
+                            {% if post.status == 'PENDING' %}
+                            <form method="POST" action="/posts/{{ post.id }}/approve">
+                                <button class="btn btn-success btn-sm"><span aria-hidden="true">✅</span> Approva</button>
+                            </form>
+                            <form method="POST" action="/posts/{{ post.id }}/reject">
+                                <button class="btn btn-danger btn-sm"><span aria-hidden="true">🚫</span> Rifiuta</button>
+                            </form>
+                            {% elif post.status == 'REJECTED' %}
+                            <form method="POST" action="/posts/{{ post.id }}/restore">
+                                <button class="btn btn-secondary btn-sm"><span aria-hidden="true">↩️</span> Riporta in review</button>
+                            </form>
+                            {% endif %}
+                        </div>
                     </div>
 
                     {% if post.status == 'APPROVED' %}
@@ -555,9 +572,10 @@ applyTypeFilters();
 
 // defaultValue is the text rendered by the server, so it stays the reference
 // even when the browser restores an edited value after navigating back.
+// The save button lives in the actions row, outside the form, so it is found via the card.
 document.querySelectorAll('[data-save-form]').forEach(form => {
     const textarea = form.querySelector('textarea');
-    const saveButton = form.querySelector('[data-save-button]');
+    const saveButton = form.closest('.review-card').querySelector('[data-save-button]');
     if (!textarea || !saveButton) return;
     const syncSaveButton = () => {
         saveButton.disabled = textarea.value === textarea.defaultValue;
