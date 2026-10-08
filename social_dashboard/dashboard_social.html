@@ -317,7 +317,7 @@
 
                     <div class="d-flex flex-wrap gap-2 mt-2">
                         {% if post.topic %}
-                        <form method="POST" action="/posts/{{ post.id }}/regenerate-topic">
+                        <form method="POST" action="/posts/{{ post.id }}/regenerate-topic" data-confirm-unsaved>
                             <button class="btn btn-outline-primary btn-sm">Rigenera dal topic</button>
                         </form>
                         {% endif %}
@@ -564,6 +564,16 @@ document.querySelectorAll('[data-save-form]').forEach(form => {
     };
     textarea.addEventListener('input', syncSaveButton);
     syncSaveButton();
+});
+
+// Regenerating overwrites the saved text, so unsaved edits would be lost silently.
+document.querySelectorAll('[data-confirm-unsaved]').forEach(form => {
+    form.addEventListener('submit', event => {
+        const textarea = form.closest('.review-card').querySelector('[data-save-form] textarea');
+        if (!textarea || textarea.value === textarea.defaultValue) return;
+        const confirmed = confirm('Hai modifiche non salvate in questo post. Rigenerando il testo andranno perse. Continuare?');
+        if (!confirmed) event.preventDefault();
+    });
 });
 </script>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
