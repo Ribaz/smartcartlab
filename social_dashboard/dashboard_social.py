@@ -9,8 +9,8 @@ from pathlib import Path
 from typing import Any
 from zoneinfo import ZoneInfo
 
-from fastapi import FastAPI, Form, Query, Request
-from fastapi.responses import RedirectResponse
+from fastapi import FastAPI, Form, HTTPException, Query, Request
+from fastapi.responses import FileResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 
 from config.settings import APP_TIMEZONE
@@ -38,6 +38,9 @@ templates = Jinja2Templates(directory=str(BASE_DIR))
 
 LOCAL_TIMEZONE = ZoneInfo(APP_TIMEZONE)
 UTC = timezone.utc
+
+# image-generator is a sibling project; images are only served from its output folder.
+IMAGE_OUTPUT_ROOT = (BASE_DIR.parent.parent / "image-generator" / "output").resolve()
 
 ENTITY_TYPES = {
     "articles": "Articles",
@@ -387,6 +390,22 @@ def render_dashboard(
     )
     response.headers["Cache-Control"] = "no-store, max-age=0"
     return response
+
+
+@app.get("/images/{image_id}/file")
+def serve_generated_image(image_id: int):
+    # The client sends only the id: the path always comes from the DB, never from the request.
+    row = _row("SELECT file_path FROM generated_images WHERE id = ?", (image_id,))
+    if not row or not row.get("file_path"):
+        raise HTTPException(status_code=404)
+
+    image_path = Path(row["file_path"]).resolve()
+    # Resolving first neutralizes ".." and symlinks before the containment check.
+    if not image_path.is_relative_to(IMAGE_OUTPUT_ROOT) or not image_path.is_file():
+        logger.warning("Image #%s not served: %s", image_id, image_path)
+        raise HTTPException(status_code=404)
+
+    return FileResponse(image_path)
 
 
 @app.post("/posts/create")

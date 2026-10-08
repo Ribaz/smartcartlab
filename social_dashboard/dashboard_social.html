@@ -30,6 +30,7 @@
         .graph-card.compact .full-text,
         .graph-card.compact .post-text { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
         .card-toggle { font-size: .75rem; text-decoration: none; }
+        .graph-image { display: block; max-width: 100%; max-height: 260px; border: 1px solid var(--border); border-radius: .5rem; }
         .post-text { white-space: pre-wrap; }
         .calendar-scroll { overflow-x: auto; }
         .calendar-grid { display: grid; grid-template-columns: 270px repeat(var(--days), 145px); min-width: max-content; }
@@ -189,6 +190,10 @@
                         <div class="graph-card image">
                             <div class="eyebrow">Generated image #{{ image.id }}</div>
                             <div>{{ image.width }}×{{ image.height }} · {{ image.provider }} · {{ image.model }}</div>
+                            <a href="/images/{{ image.id }}/file" target="_blank" rel="noopener" class="d-inline-block mt-2">
+                                <img class="graph-image" src="/images/{{ image.id }}/file" loading="lazy" alt="Generated image #{{ image.id }}"
+                                     onerror="this.replaceWith(Object.assign(document.createElement('div'), {className: 'small text-danger', textContent: 'File non trovato'}))">
+                            </a>
                             <div class="small-mono mt-1">{{ image.file_path }}</div>
                         </div>
                     </div>
