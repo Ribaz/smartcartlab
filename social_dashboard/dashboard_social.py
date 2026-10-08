@@ -26,7 +26,7 @@ from database.posts import (
 )
 from integrations.facebook import post_to_facebook
 from integrations.mastodon import post_to_mastodon
-from social.copywriter import generate_custom_social_post, generate_social_post, rewrite_social_post
+from social.copywriter import generate_custom_social_post, generate_social_post
 from social.scheduling import process_scheduling
 
 logging.basicConfig(level=logging.INFO)
@@ -509,43 +509,6 @@ def regenerate_post_from_topic(post_id: int):
         content=generated["content"],
     )
     return RedirectResponse(url="/?tab=review&saved=1", status_code=303)
-
-
-@app.post("/posts/{post_id}/regenerate-custom")
-def regenerate_post_with_prompt(post_id: int, prompt: str = Form(...)):
-    post = get_social_post_by_id(post_id)
-    if not post:
-        return RedirectResponse(url="/?tab=review", status_code=303)
-
-    article = get_blog_article_by_id(str(post["article_id"]))
-    if not article or not prompt.strip():
-        return RedirectResponse(url="/?tab=review&error=missing-context", status_code=303)
-
-    article_data = dict(article)
-    generated = generate_custom_social_post(
-        article_title=article_data["title"],
-        article_content=article_data["content"],
-        article_link=article_data["link"],
-        platform=post["platform"],
-        user_prompt=prompt.strip(),
-        language=article_data.get("lang") or "it",
-    )
-    if not generated:
-        return RedirectResponse(url="/?tab=review&error=generation-failed", status_code=303)
-
-    update_social_post_status(post_id, status="PENDING", content=generated)
-    return RedirectResponse(url="/?tab=review&saved=1", status_code=303)
-
-
-@app.post("/posts/{post_id}/rewrite")
-def rewrite_post(post_id: int):
-    post = get_social_post_by_id(post_id)
-    if post:
-        data = dict(post)
-        new_content = rewrite_social_post(data.get("content", ""), data.get("platform", "mastodon"))
-        if new_content:
-            update_social_post_status(post_id, status="PENDING", content=new_content)
-    return RedirectResponse(url="/?tab=review", status_code=303)
 
 
 @app.post("/posts/{post_id}/reschedule")

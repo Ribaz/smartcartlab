@@ -321,10 +321,6 @@
                             <button class="btn btn-outline-primary btn-sm">Rigenera dal topic</button>
                         </form>
                         {% endif %}
-                        <button class="btn btn-outline-secondary btn-sm" type="button" data-bs-toggle="collapse" data-bs-target="#custom-{{ post.id }}">Rigenera con prompt</button>
-                        <form method="POST" action="/posts/{{ post.id }}/rewrite">
-                            <button class="btn btn-outline-dark btn-sm">Riscrivi</button>
-                        </form>
                         {% if post.status == 'PENDING' %}
                         <form method="POST" action="/posts/{{ post.id }}/approve">
                             <button class="btn btn-success btn-sm">Approva</button>
@@ -337,13 +333,6 @@
                             <button class="btn btn-outline-secondary btn-sm">Riporta in review</button>
                         </form>
                         {% endif %}
-                    </div>
-
-                    <div class="collapse mt-3" id="custom-{{ post.id }}">
-                        <form method="POST" action="/posts/{{ post.id }}/regenerate-custom" class="d-flex gap-2">
-                            <input class="form-control" name="prompt" placeholder="Es. rendilo più concreto e concentra l'attenzione sul trade-off principale" required>
-                            <button class="btn btn-secondary">Genera</button>
-                        </form>
                     </div>
 
                     {% if post.status == 'APPROVED' %}
