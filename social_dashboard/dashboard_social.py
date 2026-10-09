@@ -339,7 +339,8 @@ def render_dashboard(
     graph = _load_article_graph(article_id) if tab == "graph" else None
 
     posts = _load_entities("posts")[1]
-    review_posts = [p for p in posts if p.get("status") in {"PENDING", "APPROVED", "REJECTED"}]
+    # Review is the approval queue: only posts waiting for a decision belong here.
+    review_posts = [p for p in posts if p.get("status") == "PENDING"]
 
     if platform != "all":
         review_posts = [p for p in review_posts if p.get("platform") == platform]

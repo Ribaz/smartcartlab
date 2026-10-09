@@ -337,34 +337,14 @@
                             {% endif %}
                         </div>
                         <div class="actions-group actions-end">
-                            {% if post.status == 'PENDING' %}
                             <form method="POST" action="/posts/{{ post.id }}/approve">
                                 <button class="btn btn-success btn-sm"><span aria-hidden="true">✅</span> Approva</button>
                             </form>
                             <form method="POST" action="/posts/{{ post.id }}/reject">
                                 <button class="btn btn-danger btn-sm"><span aria-hidden="true">🚫</span> Rifiuta</button>
                             </form>
-                            {% elif post.status == 'REJECTED' %}
-                            <form method="POST" action="/posts/{{ post.id }}/restore">
-                                <button class="btn btn-secondary btn-sm"><span aria-hidden="true">↩️</span> Riporta in review</button>
-                            </form>
-                            {% endif %}
                         </div>
                     </div>
-
-                    {% if post.status == 'APPROVED' %}
-                    <div class="mt-3 pt-3 border-top">
-                        <div class="row g-2 align-items-end">
-                            <div class="col-md-5">
-                                <label class="form-label small fw-semibold">Programmazione</label>
-                                <form method="POST" action="/posts/{{ post.id }}/reschedule" class="d-flex gap-2">
-                                    <input class="form-control" type="datetime-local" name="scheduled_at" value="{{ post.scheduled_at_form }}" required>
-                                    <button class="btn btn-outline-primary">Salva</button>
-                                </form>
-                            </div>
-                        </div>
-                    </div>
-                    {% endif %}
                 </div>
             </div>
             {% else %}
