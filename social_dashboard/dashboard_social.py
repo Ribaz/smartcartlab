@@ -21,13 +21,13 @@ from database.posts import (
     get_social_post_by_id,
     insert_social_post,
     mark_post_as_published,
+    set_post_image,
     update_post_schedule_date,
     update_social_post_status,
 )
-from integrations.facebook import post_to_facebook
-from integrations.mastodon import post_to_mastodon
 from social.copywriter import generate_custom_social_post, generate_social_post
-from social.scheduling import process_scheduling
+from social.post_images import resolve_generated_image_path
+from social.publishing import publish_post
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -39,8 +39,6 @@ templates = Jinja2Templates(directory=str(BASE_DIR))
 LOCAL_TIMEZONE = ZoneInfo(APP_TIMEZONE)
 UTC = timezone.utc
 
-# image-generator is a sibling project; images are only served from its output folder.
-IMAGE_OUTPUT_ROOT = (BASE_DIR.parent.parent / "image-generator" / "output").resolve()
 
 ENTITY_TYPES = {
     "articles": "Articles",
@@ -160,7 +158,7 @@ def _load_entities(entity: str, search: str = "") -> tuple[list[str], list[dict[
                 p.variation_number,
                 p.status,
                 p.content,
-                p.media_url,
+                p.image_id,
                 p.scheduled_at,
                 p.published_at,
                 p.created_at,
@@ -235,6 +233,20 @@ def _load_article_map() -> list[dict[str, Any]]:
         ORDER BY COALESCE(pub_date, created_at) DESC
         """
     )
+
+
+def _load_images_by_article() -> dict[str, list[dict[str, Any]]]:
+    images = _rows(
+        """
+        SELECT id, article_id, topic_id, width, height
+        FROM generated_images
+        ORDER BY id
+        """
+    )
+    grouped: dict[str, list[dict[str, Any]]] = {}
+    for image in images:
+        grouped.setdefault(str(image["article_id"]), []).append(image)
+    return grouped
 
 
 def _load_article_graph(article_id: str | None) -> dict[str, Any] | None:
@@ -345,6 +357,16 @@ def render_dashboard(
     if platform != "all":
         review_posts = [p for p in review_posts if p.get("platform") == platform]
 
+    if tab == "review":
+        images_by_article = _load_images_by_article()
+        for post in review_posts:
+            options = images_by_article.get(str(post["article_id"]), [])
+            # Images generated for the post's own topic come first.
+            post["image_options"] = sorted(
+                options,
+                key=lambda image: (image["topic_id"] != post.get("topic_id"), image["id"]),
+            )
+
     calendar_start = _parse_datetime(start) if start else None
     calendar_end = _parse_datetime(end) if end else None
     today = datetime.now(LOCAL_TIMEZONE).date()
@@ -396,14 +418,8 @@ def render_dashboard(
 @app.get("/images/{image_id}/file")
 def serve_generated_image(image_id: int):
     # The client sends only the id: the path always comes from the DB, never from the request.
-    row = _row("SELECT file_path FROM generated_images WHERE id = ?", (image_id,))
-    if not row or not row.get("file_path"):
-        raise HTTPException(status_code=404)
-
-    image_path = Path(row["file_path"]).resolve()
-    # Resolving first neutralizes ".." and symlinks before the containment check.
-    if not image_path.is_relative_to(IMAGE_OUTPUT_ROOT) or not image_path.is_file():
-        logger.warning("Image #%s not served: %s", image_id, image_path)
+    image_path = resolve_generated_image_path(image_id)
+    if image_path is None:
         raise HTTPException(status_code=404)
 
     return FileResponse(image_path)
@@ -449,7 +465,6 @@ def create_custom_post(
         platform=platform,
         content=post_content,
         variation_number=get_next_variation_number(article_id, platform),
-        media_url=None,
     )
     logger.info("Created custom PENDING post #%s for article %s.", post_id, article_id)
     return RedirectResponse(url="/?tab=review&saved=1", status_code=303)
@@ -474,8 +489,27 @@ def restore_rejected_post(post_id: int):
 
 
 @app.post("/posts/{post_id}/update")
-def update_post_content(post_id: int, content: str = Form(...)):
+def update_post_content(post_id: int, content: str = Form(...), image_id: str = Form("")):
+    post = get_social_post_by_id(post_id)
+    if not post:
+        return RedirectResponse(url="/?tab=review", status_code=303)
+
+    selected_image_id: int | None = None
+    if image_id.strip():
+        try:
+            candidate_id = int(image_id)
+        except ValueError:
+            return RedirectResponse(url="/?tab=review&error=invalid-image", status_code=303)
+
+        image = _row("SELECT id, article_id FROM generated_images WHERE id = ?", (candidate_id,))
+        # A post can only carry an image generated for its own article.
+        if not image or str(image["article_id"]) != str(post["article_id"]):
+            logger.warning("Image #%s rejected for post #%s.", candidate_id, post_id)
+            return RedirectResponse(url="/?tab=review&error=invalid-image", status_code=303)
+        selected_image_id = int(image["id"])
+
     update_social_post_status(post_id, status="PENDING", content=content)
+    set_post_image(post_id, selected_image_id)
     return RedirectResponse(url="/?tab=review", status_code=303)
 
 
@@ -531,19 +565,7 @@ def publish_post_now(post_id: int):
     if not post:
         return RedirectResponse(url="/?tab=review", status_code=303)
 
-    data = dict(post)
-    platform_name = str(data.get("platform", "")).lower()
-    content = data.get("content", "")
-    media_url = data.get("media_url")
-    success = False
-
-    if platform_name == "facebook":
-        success = post_to_facebook(content)
-    elif platform_name == "mastodon":
-        result = post_to_mastodon(content, media_ids=[media_url] if media_url else None)
-        success = result is not None
-
-    if success:
+    if publish_post(dict(post)):
         mark_post_as_published(post_id)
 
     return RedirectResponse(url="/?tab=review", status_code=303)

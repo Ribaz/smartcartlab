@@ -58,6 +58,15 @@
             .review-actions .actions-center { justify-content: center; }
             .review-actions .actions-end { justify-content: flex-end; }
         }
+        .image-picker { display: flex; flex-wrap: wrap; gap: .5rem; }
+        .image-option { position: relative; cursor: pointer; margin: 0; }
+        /* The radio stays focusable for keyboards but the thumbnail acts as its visual. */
+        .image-option input { position: absolute; opacity: 0; pointer-events: none; }
+        .thumb { display: block; height: 90px; border: 2px solid var(--border); border-radius: .5rem; background: var(--subtle); }
+        .thumb-none, .thumb-missing { display: flex; align-items: center; justify-content: center; width: 90px; font-size: .75rem; color: var(--muted); }
+        .thumb-missing { color: #dc3545; }
+        .image-option input:checked + .thumb { border-color: #0d6efd; box-shadow: 0 0 0 3px rgba(13, 110, 253, .25); }
+        .image-option input:focus-visible + .thumb { outline: 2px solid #0d6efd; outline-offset: 2px; }
         .calendar-scroll { overflow-x: auto; }
         .calendar-grid { display: grid; grid-template-columns: 270px repeat(var(--days), 145px); min-width: max-content; }
         .calendar-head, .calendar-label, .calendar-cell { border-right: 1px solid var(--border); border-bottom: 1px solid var(--border); }
@@ -323,6 +332,26 @@
                     <form id="save-form-{{ post.id }}" method="POST" action="/posts/{{ post.id }}/update" data-save-form>
                         <label class="form-label small fw-semibold">Testo</label>
                         <textarea class="form-control mb-2" name="content">{{ post.content }}</textarea>
+
+                        <div class="mb-3">
+                            <div class="form-label small fw-semibold">Immagine</div>
+                            <div class="image-picker">
+                                <label class="image-option" title="Nessuna immagine">
+                                    <input type="radio" name="image_id" value="" {% if not post.image_id %}checked{% endif %}>
+                                    <span class="thumb thumb-none">Nessuna</span>
+                                </label>
+                                {% for image in post.image_options %}
+                                <label class="image-option" title="Immagine #{{ image.id }}{% if image.topic_id == post.topic_id %} · stesso topic{% endif %}">
+                                    <input type="radio" name="image_id" value="{{ image.id }}" {% if post.image_id == image.id %}checked{% endif %}>
+                                    <img class="thumb" src="/images/{{ image.id }}/file" loading="lazy" alt="Immagine #{{ image.id }}"
+                                         onerror="this.replaceWith(Object.assign(document.createElement('div'), {className: 'thumb thumb-missing', textContent: 'Non trovata'}))">
+                                </label>
+                                {% endfor %}
+                            </div>
+                            {% if not post.image_options %}
+                            <div class="small text-muted mt-1">Nessuna immagine generata per questo articolo.</div>
+                            {% endif %}
+                        </div>
                     </form>
 
                     <div class="review-actions">
@@ -550,25 +579,33 @@ document.querySelectorAll('[data-type-filter]').forEach(box => {
 });
 applyTypeFilters();
 
-// defaultValue is the text rendered by the server, so it stays the reference
-// even when the browser restores an edited value after navigating back.
+// defaultValue and defaultChecked are what the server rendered, so they stay the
+// reference even when the browser restores edited values after navigating back.
+function hasUnsavedChanges(saveForm) {
+    const textarea = saveForm.querySelector('textarea');
+    const imageInputs = saveForm.querySelectorAll('input[name="image_id"]');
+    const textChanged = textarea.value !== textarea.defaultValue;
+    const imageChanged = Array.from(imageInputs).some(input => input.checked !== input.defaultChecked);
+    return textChanged || imageChanged;
+}
+
 // The save button lives in the actions row, outside the form, so it is found via the card.
 document.querySelectorAll('[data-save-form]').forEach(form => {
-    const textarea = form.querySelector('textarea');
     const saveButton = form.closest('.review-card').querySelector('[data-save-button]');
-    if (!textarea || !saveButton) return;
+    if (!saveButton) return;
     const syncSaveButton = () => {
-        saveButton.disabled = textarea.value === textarea.defaultValue;
+        saveButton.disabled = !hasUnsavedChanges(form);
     };
-    textarea.addEventListener('input', syncSaveButton);
+    form.addEventListener('input', syncSaveButton);
+    form.addEventListener('change', syncSaveButton);
     syncSaveButton();
 });
 
 // Regenerating overwrites the saved text, so unsaved edits would be lost silently.
 document.querySelectorAll('[data-confirm-unsaved]').forEach(form => {
     form.addEventListener('submit', event => {
-        const textarea = form.closest('.review-card').querySelector('[data-save-form] textarea');
-        if (!textarea || textarea.value === textarea.defaultValue) return;
+        const saveForm = form.closest('.review-card').querySelector('[data-save-form]');
+        if (!saveForm || !hasUnsavedChanges(saveForm)) return;
         const confirmed = confirm('Hai modifiche non salvate in questo post. Rigenerando il testo andranno perse. Continuare?');
         if (!confirmed) event.preventDefault();
     });

@@ -55,7 +55,7 @@ def insert_social_post(
     platform: str,
     content: str,
     variation_number: int = 1,
-    media_url: Optional[str] = None,
+    image_id: Optional[int] = None,
     scheduled_at: Optional[str] = None,
     topic_id: Optional[int] = None,
 ) -> int:
@@ -70,7 +70,7 @@ def insert_social_post(
                     platform,
                     variation_number,
                     content,
-                    media_url,
+                    image_id,
                     status,
                     scheduled_at
                 )
@@ -83,11 +83,25 @@ def insert_social_post(
                 platform,
                 variation_number,
                 content,
-                media_url,
+                image_id,
                 scheduled_at,
             ),
         )
         return int(cursor.lastrowid)
+
+
+def set_post_image(post_id: int, image_id: Optional[int]) -> None:
+    """Link a generated image to a post, or unlink it when image_id is None."""
+    with get_social_connection() as conn:
+        conn.execute(
+            """
+            UPDATE social_posts
+            SET image_id = ?,
+                updated_at = datetime('now')
+            WHERE id = ?
+            """,
+            (image_id, post_id),
+        )
 
 
 def update_social_post_status(
@@ -350,5 +364,16 @@ def social_post_exists(
         ).fetchone()
 
     return row is not None
+
+
+def get_generated_image_file_path(image_id: int) -> Optional[str]:
+    """Return the stored file path of a generated image, or None if unknown."""
+    with get_social_connection() as conn:
+        row = conn.execute(
+            "SELECT file_path FROM generated_images WHERE id = ?",
+            (image_id,),
+        ).fetchone()
+
+    return row["file_path"] if row else None
 
 

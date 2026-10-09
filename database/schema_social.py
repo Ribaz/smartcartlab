@@ -7,6 +7,7 @@ from database.connections import get_social_connection
 # ---------------------------------------------------------------------------
 
 
+
 def initialize_social_db():
     """Create social manager tables and useful indexes if they do not exist."""
     with get_social_connection() as conn:
@@ -36,7 +37,7 @@ def initialize_social_db():
                 platform             TEXT NOT NULL,
                 variation_number     INTEGER DEFAULT 1,
                 content              TEXT NOT NULL,
-                media_url            TEXT,
+                image_id             INTEGER,
                 status               TEXT NOT NULL DEFAULT 'PENDING',
                 telegram_message_id  INTEGER,
                 scheduled_at         TEXT,
@@ -44,7 +45,8 @@ def initialize_social_db():
                 created_at           TEXT DEFAULT (datetime('now')),
                 updated_at           TEXT DEFAULT (datetime('now')),
                 FOREIGN KEY (article_id) REFERENCES blog_articles (id),
-                FOREIGN KEY (topic_id) REFERENCES article_topics (id)
+                FOREIGN KEY (topic_id) REFERENCES article_topics (id),
+                FOREIGN KEY (image_id) REFERENCES generated_images (id) ON DELETE SET NULL
             )
             """
         )

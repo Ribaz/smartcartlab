@@ -70,3 +70,6 @@ LOCAL_IMAGE_GENERATOR_PATH = os.getenv(
     "LOCAL_IMAGE_GENERATOR_PATH",
     "/home/enzo/dev/image-generator/generate",
 )
+
+# image-generator is a sibling project of smartcartlab.
+IMAGE_OUTPUT_ROOT = Path(__file__).resolve().parent.parent.parent / "image-generator" / "output"
