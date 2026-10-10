@@ -74,11 +74,16 @@
         .calendar-head.today { background: #fff3cd; }
         .calendar-label { position: sticky; left: 0; z-index: 2; background: white; padding: .8rem; }
         .calendar-cell { min-height: 105px; padding: .4rem; background: white; }
+        .calendar-cell.weekend { background: #f1f3f5; }
         .calendar-event { display: block; border-radius: .45rem; padding: .4rem .5rem; margin-bottom: .35rem; font-size: .78rem; border: 1px solid var(--border); background: #f8f9fa; }
         .calendar-event.published { background: #d1e7dd; }
         .calendar-event.scheduled { background: #cfe2ff; }
         .calendar-event.article { background: #fff3cd; font-weight: 700; }
-        .calendar-filter-list { max-height: 240px; overflow-y: auto; }
+        .calendar-filters { display: flex; flex-wrap: wrap; align-items: flex-end; gap: .75rem; }
+        .calendar-filters .form-select, .calendar-filters .form-control { width: auto; }
+        .calendar-article-toggle { min-width: 240px; max-width: 100%; }
+        .calendar-article-menu { width: min(480px, 92vw); }
+        .calendar-filter-list { max-height: 280px; overflow-y: auto; }
         .review-card textarea { min-height: 180px; }
         .status-badge { font-size: .72rem; }
         .small-mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: .75rem; }
@@ -412,16 +417,19 @@
     {% if tab == 'calendar' %}
     <section>
         <div class="panel p-3 mb-3">
-            <form method="GET" id="calendarFilterForm">
+            <form method="GET" id="calendarFilterForm" class="calendar-filters">
                 <input type="hidden" name="tab" value="calendar">
-                <div class="row g-3">
-                    <div class="col-lg-5">
-                        <div class="small fw-semibold mb-2">Articoli</div>
-                        <div class="calendar-filter-list border rounded p-2">
-                            <div class="d-flex gap-2 mb-2">
-                                <button type="button" class="btn btn-sm btn-outline-secondary" onclick="setArticleChecks(true)">Tutti</button>
-                                <button type="button" class="btn btn-sm btn-outline-secondary" onclick="setArticleChecks(false)">Nessuno</button>
-                            </div>
+
+                <div class="dropdown">
+                    <label class="form-label small fw-semibold d-block mb-1">Articoli</label>
+                    <button type="button" id="articleFilterButton" class="btn btn-outline-secondary dropdown-toggle text-start calendar-article-toggle"
+                            data-bs-toggle="dropdown" data-bs-auto-close="outside" aria-expanded="false">Tutti gli articoli</button>
+                    <div class="dropdown-menu p-2 calendar-article-menu">
+                        <div class="d-flex gap-2 mb-2">
+                            <button type="button" class="btn btn-sm btn-outline-secondary" onclick="setArticleChecks(true)">Tutti</button>
+                            <button type="button" class="btn btn-sm btn-outline-secondary" onclick="setArticleChecks(false)">Nessuno</button>
+                        </div>
+                        <div class="calendar-filter-list">
                             {% for article in articles %}
                             <div class="form-check">
                                 <input class="form-check-input article-check" type="checkbox" name="selected_articles" value="{{ article.id }}" id="article-{{ loop.index }}" {% if article.id|string in selected_articles %}checked{% endif %}>
@@ -430,23 +438,27 @@
                             {% endfor %}
                         </div>
                     </div>
-                    <div class="col-lg-2">
-                        <label class="small fw-semibold">Platform</label>
-                        <select name="platform" class="form-select mt-2">
-                            <option value="all">Tutte</option>
-                            {% for p in platforms %}<option value="{{ p }}" {% if platform == p %}selected{% endif %}>{{ p }}</option>{% endfor %}
-                        </select>
-                    </div>
-                    <div class="col-lg-2">
-                        <label class="small fw-semibold">Da</label>
-                        <input type="date" name="start" class="form-control mt-2" value="{{ window_start.isoformat() }}">
-                    </div>
-                    <div class="col-lg-2">
-                        <label class="small fw-semibold">A</label>
-                        <input type="date" name="end" class="form-control mt-2" value="{{ window_end.isoformat() }}">
-                    </div>
-                    <div class="col-lg-1 d-flex align-items-end"><button class="btn btn-primary w-100">OK</button></div>
                 </div>
+
+                <div>
+                    <label class="form-label small fw-semibold mb-1">Platform</label>
+                    <select name="platform" class="form-select">
+                        <option value="all">Tutte</option>
+                        {% for p in platforms %}<option value="{{ p }}" {% if platform == p %}selected{% endif %}>{{ p }}</option>{% endfor %}
+                    </select>
+                </div>
+
+                <div>
+                    <label class="form-label small fw-semibold mb-1">Da</label>
+                    <input type="date" name="start" class="form-control" value="{{ window_start.isoformat() }}">
+                </div>
+
+                <div>
+                    <label class="form-label small fw-semibold mb-1">A</label>
+                    <input type="date" name="end" class="form-control" value="{{ window_end.isoformat() }}">
+                </div>
+
+                <button class="btn btn-primary">Applica</button>
             </form>
         </div>
 
@@ -462,7 +474,7 @@
                         <div class="small text-muted">{{ article.pub_date or '' }}</div>
                     </div>
                     {% for day in calendar_days %}
-                    <div class="calendar-cell">
+                    <div class="calendar-cell {% if day.weekday() >= 5 %}weekend{% endif %}">
                         {% if article.pub_date_day == day.isoformat() %}
                         <div class="calendar-event article">ARTICLE · pubblicato</div>
                         {% endif %}
@@ -486,7 +498,22 @@
 <script>
 function setArticleChecks(value) {
     document.querySelectorAll('.article-check').forEach(el => el.checked = value);
+    updateArticleFilterLabel();
 }
+
+// With nothing ticked the backend shows every article, so the label says "Tutti" in that case too.
+function updateArticleFilterLabel() {
+    const button = document.getElementById('articleFilterButton');
+    if (!button) return;
+    const boxes = document.querySelectorAll('.article-check');
+    const checked = Array.from(boxes).filter(box => box.checked).length;
+    button.textContent = checked === 0 || checked === boxes.length
+        ? `Tutti gli articoli (${boxes.length})`
+        : `${checked} di ${boxes.length} articoli`;
+}
+
+document.querySelectorAll('.article-check').forEach(box => box.addEventListener('change', updateArticleFilterLabel));
+updateArticleFilterLabel();
 
 // Reopening the article already on screen is a no-op, so the button
 // stays disabled until the selection differs from the loaded one.
