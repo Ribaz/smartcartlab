@@ -47,6 +47,7 @@ ENTITY_TYPES = {
     "prompts": "Image prompts",
     "images": "Images",
 }
+CALENDAR_COLOR_COUNT = 8
 
 
 def _parse_datetime(value: str | None) -> datetime | None:
@@ -233,10 +234,13 @@ def _load_article_map() -> list[dict[str, Any]]:
         ORDER BY COALESCE(NULLIF(pub_date, ''), created_at) DESC
         """
     )
-    for article in articles:
+    total = len(articles)
+    for position, article in enumerate(articles):
         parsed = _parse_datetime(article.get("pub_date"))
         # Local calendar day, so the calendar cell matches what the reader saw.
         article["pub_date_day"] = parsed.date().isoformat() if parsed else ""
+        # Oldest article gets color 0, so existing colors stay put when new articles arrive.
+        article["color_index"] = (total - 1 - position) % CALENDAR_COLOR_COUNT
     return articles
 
 

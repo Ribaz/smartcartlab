@@ -76,9 +76,19 @@
         .calendar-cell { min-height: 105px; padding: .4rem; background: white; }
         .calendar-cell.weekend { background: #f1f3f5; }
         .calendar-event { display: block; border-radius: .45rem; padding: .4rem .5rem; margin-bottom: .35rem; font-size: .78rem; border: 1px solid var(--border); background: #f8f9fa; }
-        .calendar-event.published { background: #d1e7dd; }
-        .calendar-event.scheduled { background: #cfe2ff; }
-        .calendar-event.article { background: #fff3cd; font-weight: 700; }
+        .article-color-0 { --ac: #0f766e; --ac-bg: #dff5f2; }
+        .article-color-1 { --ac: #c2410c; --ac-bg: #ffeadb; }
+        .article-color-2 { --ac: #be185d; --ac-bg: #fce4ef; }
+        .article-color-3 { --ac: #4d7c0f; --ac-bg: #eaf5d9; }
+        .article-color-4 { --ac: #a16207; --ac-bg: #fdf1d0; }
+        .article-color-5 { --ac: #475569; --ac-bg: #e8ecf1; }
+        .article-color-6 { --ac: #b91c1c; --ac-bg: #fde4e4; }
+        .article-color-7 { --ac: #0e7490; --ac-bg: #dcf3f9; }
+        .calendar-event { border-left: 4px solid var(--ac); background: var(--ac-bg); }
+        /* Published posts have a solid border, scheduled ones a dashed one. */
+        .calendar-event.scheduled { border-top-style: dashed; border-right-style: dashed; border-bottom-style: dashed; }
+        .calendar-event.article { background: var(--ac); border-color: var(--ac); color: #fff; font-weight: 700; }
+        .calendar-label { border-left: 6px solid var(--ac); }
         .calendar-event .platform-badge { font-size: .65rem; padding: .1em .5em; }
         .calendar-filters { display: flex; flex-wrap: wrap; align-items: flex-end; gap: .75rem; }
         .calendar-filters .form-select, .calendar-filters .form-control { width: auto; }
@@ -470,17 +480,17 @@
                     {% for day in calendar_days %}<div class="calendar-head {% if day == today %}today{% endif %}">{{ day.strftime('%a') }}<br>{{ day.strftime('%d/%m') }}</div>{% endfor %}
 
                     {% for article in calendar_articles %}
-                    <div class="calendar-label">
+                    <div class="calendar-label article-color-{{ article.color_index }}">
                         <div class="fw-semibold">{{ article.title }}</div>
                         <div class="small text-muted">{{ article.pub_date or '' }}</div>
                     </div>
                     {% for day in calendar_days %}
-                    <div class="calendar-cell {% if day.weekday() >= 5 %}weekend{% endif %}">
+                    <div class="calendar-cell article-color-{{ article.color_index }} {% if day.weekday() >= 5 %}weekend{% endif %}">
                         {% if article.pub_date_day == day.isoformat() %}
                         <div class="calendar-event article">ARTICLE · pubblicato</div>
                         {% endif %}
                         {% for post in calendar_posts if post.article_id|string == article.id|string and ((post.status == 'PUBLISHED' and post.published_at and post.published_at[:10] == day.isoformat()) or (post.status == 'APPROVED' and post.scheduled_at and post.scheduled_at[:10] == day.isoformat())) %}
-                        <div class="calendar-event {% if post.status == 'PUBLISHED' %}published{% else %}scheduled{% endif %}">
+                        <div class="calendar-event {% if post.status != 'PUBLISHED' %}scheduled{% endif %}">
                             <span class="platform-badge platform-{{ post.platform|lower }}">{{ post.platform }}</span> {{ post.status|lower }}<br>
                             {{ post.event_time or post.scheduled_at_display or post.published_at_display }}
                             <div class="text-muted">#{{ post.id }}{% if post.topic %} · {{ post.topic }}{% endif %}</div>
