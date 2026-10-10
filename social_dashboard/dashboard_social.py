@@ -4,7 +4,7 @@
 from __future__ import annotations
 
 import logging
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 from zoneinfo import ZoneInfo
@@ -240,6 +240,14 @@ def _load_article_map() -> list[dict[str, Any]]:
     return articles
 
 
+def _default_calendar_window(articles: list[dict[str, Any]], today: date) -> tuple[date, date]:
+    """From the day before the oldest article to two weeks after the newest one."""
+    days = [date.fromisoformat(a["pub_date_day"]) for a in articles if a.get("pub_date_day")]
+    if not days:
+        return today - timedelta(days=7), today + timedelta(days=20)
+    return min(days) - timedelta(days=1), max(days) + timedelta(days=14)
+
+
 def _load_images_by_article() -> dict[str, list[dict[str, Any]]]:
     images = _rows(
         """
@@ -372,24 +380,29 @@ def render_dashboard(
                 key=lambda image: (image["topic_id"] != post.get("topic_id"), image["id"]),
             )
 
+    today = datetime.now(LOCAL_TIMEZONE).date()
+    selected = {str(value) for value in selected_articles}
+    calendar_articles = [a for a in articles if not selected or str(a["id"]) in selected]
+
     calendar_start = _parse_datetime(start) if start else None
     calendar_end = _parse_datetime(end) if end else None
-    today = datetime.now(LOCAL_TIMEZONE).date()
-    window_start = calendar_start.date() if calendar_start else today - timedelta(days=7)
-    window_end = calendar_end.date() if calendar_end else window_start + timedelta(days=27)
+    dates_custom = calendar_start is not None or calendar_end is not None
+
+    default_start, default_end = _default_calendar_window(calendar_articles, today)
+    window_start = calendar_start.date() if calendar_start else default_start
+    window_end = calendar_end.date() if calendar_end else default_end
     if window_end < window_start:
         window_start, window_end = window_end, window_start
-    if (window_end - window_start).days > 90:
+    # The cap only protects against manual ranges: a default range must never hide the newest article.
+    if dates_custom and (window_end - window_start).days > 90:
         window_end = window_start + timedelta(days=90)
 
-    selected = {str(value) for value in selected_articles}
     calendar_posts = posts
     if selected:
         calendar_posts = [p for p in calendar_posts if str(p["article_id"]) in selected]
     if platform != "all":
         calendar_posts = [p for p in calendar_posts if p.get("platform") == platform]
 
-    calendar_articles = [a for a in articles if not selected or str(a["id"]) in selected]
     days = [window_start + timedelta(days=i) for i in range((window_end - window_start).days + 1)]
 
     response = templates.TemplateResponse(
@@ -414,6 +427,7 @@ def render_dashboard(
             "window_start": window_start,
             "window_end": window_end,
             "today": today,
+            "dates_custom": dates_custom,
         },
     )
     response.headers["Cache-Control"] = "no-store, max-age=0"

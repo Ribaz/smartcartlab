@@ -417,7 +417,7 @@
     {% if tab == 'calendar' %}
     <section>
         <div class="panel p-3 mb-3">
-            <form method="GET" id="calendarFilterForm" class="calendar-filters">
+            <form method="GET" id="calendarFilterForm" class="calendar-filters" data-dates-custom="{{ 'true' if dates_custom else 'false' }}">
                 <input type="hidden" name="tab" value="calendar">
 
                 <div class="dropdown">
@@ -450,12 +450,12 @@
 
                 <div>
                     <label class="form-label small fw-semibold mb-1">Da</label>
-                    <input type="date" name="start" class="form-control" value="{{ window_start.isoformat() }}">
+                    <input type="date" name="start" class="form-control" value="{{ window_start.isoformat() }}" data-date-input>
                 </div>
 
                 <div>
                     <label class="form-label small fw-semibold mb-1">A</label>
-                    <input type="date" name="end" class="form-control" value="{{ window_end.isoformat() }}">
+                    <input type="date" name="end" class="form-control" value="{{ window_end.isoformat() }}" data-date-input>
                 </div>
 
                 <button class="btn btn-primary">Applica</button>
@@ -637,6 +637,23 @@ document.querySelectorAll('[data-confirm-unsaved]').forEach(form => {
         if (!confirmed) event.preventDefault();
     });
 });
+
+// In auto mode the date fields only show the computed defaults. Untouched fields are not
+// submitted, so the backend recomputes the range for the new article selection.
+const calendarForm = document.getElementById('calendarFilterForm');
+if (calendarForm) {
+    const dateInputs = calendarForm.querySelectorAll('[data-date-input]');
+    const touchedDates = new Set();
+    dateInputs.forEach(input => input.addEventListener('change', () => touchedDates.add(input)));
+    calendarForm.addEventListener('submit', () => {
+        if (calendarForm.dataset.datesCustom === 'true') return;
+        dateInputs.forEach(input => {
+            if (!touchedDates.has(input)) input.disabled = true;
+        });
+    });
+    // Coming back with the browser button must not leave the fields disabled.
+    window.addEventListener('pageshow', () => dateInputs.forEach(input => { input.disabled = false; }));
+}
 </script>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
