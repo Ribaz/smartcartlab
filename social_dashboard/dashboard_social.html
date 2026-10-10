@@ -79,6 +79,7 @@
         .calendar-event.published { background: #d1e7dd; }
         .calendar-event.scheduled { background: #cfe2ff; }
         .calendar-event.article { background: #fff3cd; font-weight: 700; }
+        .calendar-event .platform-badge { font-size: .65rem; padding: .1em .5em; }
         .calendar-filters { display: flex; flex-wrap: wrap; align-items: flex-end; gap: .75rem; }
         .calendar-filters .form-select, .calendar-filters .form-control { width: auto; }
         .calendar-article-toggle { min-width: 240px; max-width: 100%; }
@@ -480,7 +481,7 @@
                         {% endif %}
                         {% for post in calendar_posts if post.article_id|string == article.id|string and ((post.status == 'PUBLISHED' and post.published_at and post.published_at[:10] == day.isoformat()) or (post.status == 'APPROVED' and post.scheduled_at and post.scheduled_at[:10] == day.isoformat())) %}
                         <div class="calendar-event {% if post.status == 'PUBLISHED' %}published{% else %}scheduled{% endif %}">
-                            <strong>{{ post.platform }}</strong> · {{ post.status|lower }}<br>
+                            <span class="platform-badge platform-{{ post.platform|lower }}">{{ post.platform }}</span> {{ post.status|lower }}<br>
                             {{ post.event_time or post.scheduled_at_display or post.published_at_display }}
                             <div class="text-muted">#{{ post.id }}{% if post.topic %} · {{ post.topic }}{% endif %}</div>
                         </div>
