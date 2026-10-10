@@ -463,7 +463,7 @@
                     </div>
                     {% for day in calendar_days %}
                     <div class="calendar-cell">
-                        {% if article.pub_date and article.pub_date[:10] == day.isoformat() %}
+                        {% if article.pub_date_day == day.isoformat() %}
                         <div class="calendar-event article">ARTICLE · pubblicato</div>
                         {% endif %}
                         {% for post in calendar_posts if post.article_id|string == article.id|string and ((post.status == 'PUBLISHED' and post.published_at and post.published_at[:10] == day.isoformat()) or (post.status == 'APPROVED' and post.scheduled_at and post.scheduled_at[:10] == day.isoformat())) %}

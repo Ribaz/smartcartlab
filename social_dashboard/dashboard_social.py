@@ -226,13 +226,18 @@ def _load_entities(entity: str, search: str = "") -> tuple[list[str], list[dict[
 
 
 def _load_article_map() -> list[dict[str, Any]]:
-    return _rows(
+    articles = _rows(
         """
         SELECT id, title, pub_date
         FROM blog_articles
         ORDER BY COALESCE(pub_date, created_at) DESC
         """
     )
+    for article in articles:
+        parsed = _parse_datetime(article.get("pub_date"))
+        # Local calendar day, so the calendar cell matches what the reader saw.
+        article["pub_date_day"] = parsed.date().isoformat() if parsed else ""
+    return articles
 
 
 def _load_images_by_article() -> dict[str, list[dict[str, Any]]]:
