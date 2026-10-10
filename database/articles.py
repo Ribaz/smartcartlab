@@ -4,6 +4,7 @@ import sqlite3
 from datetime import datetime, timezone
 from typing import Dict, List, Optional
 from zoneinfo import ZoneInfo
+from email.utils import parsedate_to_datetime
 
 from config.settings import APP_TIMEZONE
 from database.connections import get_social_connection
@@ -35,7 +36,11 @@ def _normalize_article_pub_date(value: str | None) -> str:
     try:
         parsed = datetime.fromisoformat(normalized)
     except ValueError:
-        return value
+        # RSS feeds publish pubDate in RFC 2822, not ISO.
+        try:
+            parsed = parsedate_to_datetime(normalized)
+        except (TypeError, ValueError):
+            return value
 
     if parsed.tzinfo is None:
         parsed = parsed.replace(tzinfo=UTC)
@@ -73,7 +78,7 @@ def save_blog_article(article: Dict) -> bool:
                 article["title"],
                 article["content"],
                 article["link"],
-                _normalize_article_pub_date(article.get("date_gmt")),
+                _normalize_article_pub_date(article.get("pub_date")),
                 article.get("media_url"),
                 article.get("lang", "it"),
             ),
