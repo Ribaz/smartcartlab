@@ -230,7 +230,7 @@ def _load_article_map() -> list[dict[str, Any]]:
         """
         SELECT id, title, pub_date
         FROM blog_articles
-        ORDER BY COALESCE(pub_date, created_at) DESC
+        ORDER BY COALESCE(NULLIF(pub_date, ''), created_at) DESC
         """
     )
     for article in articles:
