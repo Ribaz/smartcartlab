@@ -67,7 +67,6 @@ def save_blog_article(article: Dict) -> bool:
                 content,
                 link,
                 pub_date,
-                media_url,
                 lang
             )
             VALUES (?, ?, ?, ?, ?, ?, ?, ?)
@@ -79,7 +78,6 @@ def save_blog_article(article: Dict) -> bool:
                 article["content"],
                 article["link"],
                 _normalize_article_pub_date(article.get("pub_date")),
-                article.get("media_url"),
                 article.get("lang", "it"),
             ),
         )

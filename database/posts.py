@@ -305,8 +305,7 @@ _POST_WITH_ARTICLE_SELECT = """
         sp.*,
         ba.title AS article_title,
         ba.link AS article_link,
-        ba.pub_date AS article_pub_date,
-        ba.media_url AS article_media_url
+        ba.pub_date AS article_pub_date
     FROM social_posts AS sp
     JOIN blog_articles AS ba ON ba.id = sp.article_id
 """

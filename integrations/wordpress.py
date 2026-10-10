@@ -75,12 +75,6 @@ def get_latest_posts(limit: int = 5, lang: str = "it") -> List[Dict]:
             elif description_el is not None and description_el.text:
                 body = description_el.text
 
-            # Extract featured media URL if present in enclosure
-            media_url = None
-            enclosure = item.find("enclosure")
-            if enclosure is not None and "image" in enclosure.attrib.get("type", ""):
-                media_url = enclosure.attrib.get("url")
-
             # Extract slug from clean link
             slug = link.rstrip("/").split("/")[-1]
 
@@ -91,7 +85,6 @@ def get_latest_posts(limit: int = 5, lang: str = "it") -> List[Dict]:
                 "content": body,
                 "link": link,
                 "pub_date": pub_date,
-                "media_url": media_url,
                 "lang": lang
             })
 

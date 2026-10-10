@@ -20,7 +20,6 @@ def initialize_social_db():
                 content           TEXT NOT NULL,
                 link              TEXT NOT NULL,
                 pub_date          TEXT,
-                media_url         TEXT,
                 lang              TEXT NOT NULL DEFAULT 'it',
                 processing_status TEXT NOT NULL DEFAULT 'NEW',
                 created_at        TEXT DEFAULT (datetime('now'))
