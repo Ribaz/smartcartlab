@@ -69,7 +69,7 @@ def save_blog_article(article: Dict) -> bool:
                 pub_date,
                 lang
             )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 article["id"],
