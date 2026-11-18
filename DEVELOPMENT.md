@@ -82,11 +82,26 @@ logger.info(f"Created post #{post_id}.")
 
 ## Architecture
 
-* `database/` → database access
+* `config/` → settings and `.env` loading
+* `database/` → SQLite access for the deal, social, and task databases
 * `integrations/` → external services
-* `core/` → SmartCartLab business components
-* `social/` → Social Manager workflow
-* entrypoints (`main.py`, `main_social_pipeline.py`) should only orchestrate modules.
+* `core/` → deal pipeline: fetch, score, publish
+* `social/` → social manager workflow
+* `jobs/` → one-shot entry points that queue work or run one social step
+* `tasks/` → handlers for a single queued task
+* `social_dashboard/` and `tasks_dashboard/` → FastAPI review and operations UI
+
+`main.py` only orchestrates the deal pipeline. Each file in `jobs/` only
+orchestrates one social or queue step. Task handlers do the work. Dashboards
+call the same modules for review actions.
+
+## Tooling
+
+Ruff is configured in `pyproject.toml`: line length 100, Python 3.12, lint
+rules E, F, and I. `social/copywriter.py` ignores E501 because its prompts are
+long string literals.
+
+Local AI assistant folders (`.cursor/`, `.claude/`, and similar) are gitignored.
 
 ## Commits
 

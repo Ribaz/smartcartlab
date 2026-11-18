@@ -2,8 +2,9 @@
 
 > One deal a day. The real one.
 
-Smart Cart Lab analyzes hundreds of Amazon daily deals and selects the single best
+Smart Cart Lab analyzes Amazon daily deals and selects the single best
 offer of the day — or posts nothing if nothing is worth your attention.
+The same repository turns the blog into reviewed, scheduled social posts.
 
 Built in public. Documented step by step.
 
@@ -11,10 +12,22 @@ Built in public. Documented step by step.
 
 ## What it does
 
-- Fetches daily deals from Amazon via Keepa API
-- Scores each product using a 5-pillar algorithm (price history, reviews, stability, appeal)
-- Publishes the best deal of the day to a Telegram channel
-- Generates a daily report article on WordPress
+Daily deals:
+
+- Fetches deals. The active source is fake data; a Keepa fetcher for Amazon.it is in the tree
+- Scores each product with a 5-pillar algorithm
+- Saves the run to SQLite
+- Publishes the best deal, or a no-deal message, to a Telegram channel
+
+Social manager:
+
+- Reads new articles from the WordPress RSS feed
+- Asks a local Ollama model for topics, social copy, and image prompts
+- Generates images with a local image-generator CLI
+- Reviews, schedules, and publishes posts to Mastodon and Facebook
+- Notifies a Telegram admin chat when a post goes out
+
+Two local dashboards cover the social review queue and the background task queue.
 
 ## Philosophy
 
@@ -23,27 +36,59 @@ one post per day, only when there is something genuinely worth buying.
 
 ## Built with
 
-- Python 3
-- SQLite
+- Python 3.12
+- SQLite (deals, social content, and the task queue)
 - Keepa API
-- Telegram Bot API
-- WordPress REST API
+- Telegram Bot API over HTTP
+- WordPress RSS
+- Ollama
+- Mastodon and the Facebook Graph API
+- FastAPI
 
 ## Project status
 
-🟡 In development — pipeline working with fake data, Keepa integration in progress.
+🟡 In development.
+
+The deal run uses fake products. Price history, offer stability, and popularity
+scoring are still placeholders, and each Telegram deal message carries a test
+disclaimer. The social pipeline is wired through ingest, queue, generate, review,
+schedule, and publish.
 
 ## Setup
 
-1. Clone the repository
-2. Install dependencies: `pip install -r requirements.txt`
-3. Copy `.env.example` to `.env` and fill in your credentials
-4. Run: `python main.py`
+From the repository root:
 
-To run with fake data (no API keys needed), change one line in `main.py`:
+1. Install dependencies: `pip install -r requirements.txt`
+2. Copy `.env.example` to `.env` and fill in the credentials you use
+3. Run the deal pipeline: `python main.py`
+
+`main.py` imports `FakeFetcher`. To use Keepa, change that import to:
+
 ```python
-from core.fetcher.fake_fetcher import FakeFetcher as Fetcher
+from core.fetcher.keepa_fetcher import KeepaFetcher as Fetcher
 ```
+
+Social jobs, each safe to run on its own:
+
+```text
+python -m jobs.ingest_blog_articles
+python -m jobs.generate_article_topics
+python -m jobs.generate_image_prompts
+python -m jobs.generate_social_posts
+python -m jobs.generate_images
+python -m jobs.process_task_queue
+python -m jobs.schedule_social_posts
+python -m jobs.publish_social_posts
+```
+
+Dashboards:
+
+```text
+python -m social_dashboard.dashboard_social
+python -m tasks_dashboard.dashboard_task
+```
+
+The social dashboard listens on port 8000. The task dashboard listens on port 8001.
 
 ## Follow the project
 

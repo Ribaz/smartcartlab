@@ -1,6 +1,8 @@
 # Smart Cart Lab — dependencies
 # Install with: pip install -r requirements.txt
 
-keepa               # Keepa API client
-python-telegram-bot # Telegram Bot API
-requests            # HTTP calls (WordPress REST API, scraper fallback)
+keepa      # Keepa API client for the Amazon.it fetcher
+requests   # HTTP calls: Telegram, Ollama, Mastodon, Facebook, WordPress REST
+fastapi    # Social and task dashboards
+uvicorn    # ASGI server for the dashboards
+jinja2     # Dashboard templates
