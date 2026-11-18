@@ -23,5 +23,28 @@ Thumbs.db
 .idea/
 *.swp
 
+# Local AI assistant folders
+.cursor/
+.claude/
+.codex/
+.gemini/
+.antigravity/
+.windsurf/
+.continue/
+.aider*
+.amazonq/
+.codeium/
+.tabnine/
+.cline/
+.clinerules
+.roo/
+.kilocode/
+.goose/
+.opencode/
+.augment/
+.devin/
+.factory/
+.junie/
+
 # Other
 *.log
