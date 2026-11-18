@@ -20,7 +20,8 @@ app = FastAPI(title="SmartCartLab Task Dashboard")
 BASE_DIR = Path(__file__).resolve().parent
 templates = Jinja2Templates(directory=str(BASE_DIR))
 LOCAL_TZ = ZoneInfo(APP_TIMEZONE)
-PROJECT_ROOT = Path("/home/enzo/dev/smartcartlab")
+# This checkout, so cron commands and logs follow the running code.
+PROJECT_ROOT = BASE_DIR.parent
 LOG_DIR = PROJECT_ROOT / "logs"
 
 STATUS_VALUES = ("PENDING", "RUNNING", "COMPLETED", "FAILED")
