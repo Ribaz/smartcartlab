@@ -7,22 +7,20 @@ from pathlib import Path
 
 
 def _load_env_file(filepath: Path):
-    """Carica il file .env nelle variabili d'ambiente senza librerie esterne."""
+    """Load a .env file into the process environment without extra libraries."""
     if not filepath.is_file():
         return
     with open(filepath, "r", encoding="utf-8") as f:
         for line in f:
             line = line.strip()
-            # Ignora righe vuote e commenti
             if not line or line.startswith("#") or "=" not in line:
                 continue
             key, value = line.split("=", 1)
             key = key.strip()
-            value = value.strip().strip("'\"")  # Rimuove apici se presenti
+            value = value.strip().strip("'\"")
             os.environ.setdefault(key, value)
 
 
-# Carica .env dalla root del progetto
 BASE_DIR = Path(__file__).resolve().parent.parent
 _load_env_file(BASE_DIR / ".env")
 
@@ -65,11 +63,11 @@ FACEBOOK_ACCESS_TOKEN  = os.getenv("FACEBOOK_ACCESS_TOKEN")
 # --- Dashboard params ---
 APP_TIMEZONE = "Europe/Rome"
 
-# --- Local Image generator ---
-LOCAL_IMAGE_GENERATOR_PATH = os.getenv(
-    "LOCAL_IMAGE_GENERATOR_PATH",
-    "/home/enzo/dev/image-generator/generate",
+# --- Local image generator ---
+# Sibling of this repo: ../image-generator/, resolved from the project root
+# so the working directory does not matter.
+_IMAGE_GENERATOR_ROOT = BASE_DIR.parent / "image-generator"
+LOCAL_IMAGE_GENERATOR_PATH = os.getenv("LOCAL_IMAGE_GENERATOR_PATH") or str(
+    _IMAGE_GENERATOR_ROOT / "generate"
 )
-
-# image-generator is a sibling project of smartcartlab.
-IMAGE_OUTPUT_ROOT = Path(__file__).resolve().parent.parent.parent / "image-generator" / "output"
+IMAGE_OUTPUT_ROOT = _IMAGE_GENERATOR_ROOT / "output"

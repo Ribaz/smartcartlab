@@ -198,9 +198,10 @@ Nothing in the repo chains them. Order that matches the data:
 Ollama generation for topics, posts, and prompts goes through `integrations/ollama.py`.
 The deal Telegram copy calls Ollama directly from `TelegramPublisher`.
 
-Images are produced by `LOCAL_IMAGE_GENERATOR_PATH` (default
-`/home/enzo/dev/image-generator/generate`). Files are resolved under
-`IMAGE_OUTPUT_ROOT`, the sibling `image-generator/output` directory.
+Images are produced by `LOCAL_IMAGE_GENERATOR_PATH`. The default is
+`../image-generator/generate` next to this repo, resolved from the project
+root. Files are resolved under `IMAGE_OUTPUT_ROOT`, the sibling
+`image-generator/output` directory.
 
 RSS URLs: `{WORDPRESS_URL}/feed/` for Italian, `{WORDPRESS_URL}/en/feed/` for English.
 Ingestion calls the Italian feed.
@@ -232,7 +233,7 @@ Set in `.env`. `settings.py` only fills a variable when it is not already set.
 | `OLLAMA_URL`, `OLLAMA_MODEL` | local generation |
 | `MASTODON_API_BASE_URL`, `MASTODON_ACCESS_TOKEN` | Mastodon |
 | `FACEBOOK_PAGE_ID`, `FACEBOOK_ACCESS_TOKEN` | Facebook Page |
-| `LOCAL_IMAGE_GENERATOR_PATH` | image CLI |
+| `LOCAL_IMAGE_GENERATOR_PATH` | image CLI. Optional; defaults to the sibling `../image-generator/generate` |
 | `DB_PATH`, `SOCIAL_DB_PATH`, `TASK_DB_PATH` | optional database paths |
 
 ---
